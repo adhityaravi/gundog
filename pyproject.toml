@@ -1,6 +1,6 @@
 [project]
 name = "gundog"
-version = "0.1.0"
+version = "1.0.0"
 description = "Semantic embedding validation tool for ADRs and code"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -117,6 +117,7 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 
 [tool.semantic_release]
+allow_zero_version = true
 major_on_zero = false
 version_toml = ["pyproject.toml:project.version"]
 version_variables = ["src/gundog/_version.py:__version__"]
@@ -128,7 +129,7 @@ tag_format = "v{version}"
 [tool.semantic_release.commit_parser_options]
 allowed_tags = ["feat", "fix", "docs", "style", "refactor", "perf", "test", "build", "ci", "chore"]
 minor_tags = ["feat"]
-patch_tags = ["fix", "perf", "refactor"]
+patch_tags = ["fix", "perf", "refactor", "chore"]
 
 [tool.semantic_release.changelog]
 exclude_commit_patterns = ["^chore\\(release\\):"]
