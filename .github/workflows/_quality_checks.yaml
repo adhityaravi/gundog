@@ -1,0 +1,64 @@
+name: Quality Checks
+
+on:
+  workflow_call:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv sync --extra dev
+      - run: uv run ruff check .
+
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv sync --extra dev
+      - run: uv run ruff format --check .
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv sync --extra dev
+      - run: uv run pyright src
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv sync --extra dev
+      - run: uv run pytest tests/unit/ -v
+
+  discover-integration-tests:
+    runs-on: ubuntu-latest
+    outputs:
+      tests: ${{ steps.find.outputs.tests }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find integration test files
+        id: find
+        run: |
+          # Find all test files except lance (requires optional dep)
+          TESTS=$(ls tests/integration/tests/test_*.py | grep -v test_storage_lance | xargs -n1 basename | sed 's/\.py$//' | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "tests=$TESTS" >> $GITHUB_OUTPUT
+          echo "Found tests: $TESTS"
+
+  integration-tests:
+    needs: discover-integration-tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test: ${{ fromJson(needs.discover-integration-tests.outputs.tests) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv sync --extra dev
+      - run: uv run pytest tests/integration/tests/${{ matrix.test }}.py -v
