@@ -16,7 +16,6 @@ from gundog._config import (
     SourceConfig,
     StorageConfig,
 )
-from gundog._templates import ExclusionTemplate
 
 
 @pytest.fixture

@@ -5,11 +5,9 @@ import os
 from pytest_bdd import given, parsers, then, when
 
 from gundog._chunker import parse_chunk_id
-from gundog._indexer import Indexer
 from gundog._query import QueryEngine
 from gundog._templates import ExclusionTemplate
 from tests.integration.steps.common import create_config, parse_datatable
-
 
 # ============ Chunking Steps ============
 
