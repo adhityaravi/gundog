@@ -5,52 +5,86 @@ on:
 
 jobs:
   lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v4
-      - run: uv sync --extra dev
-      - run: uv run ruff check .
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Run ruff check
+        run: uv run ruff check .
 
   format:
+    name: Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v4
-      - run: uv sync --extra dev
-      - run: uv run ruff format --check .
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Check formatting
+        run: uv run ruff format --check .
 
   typecheck:
+    name: Type Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v4
-      - run: uv sync --extra dev
-      - run: uv run pyright src
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Run pyright
+        run: uv run pyright src
 
   unit-tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v4
-      - run: uv sync --extra dev
-      - run: uv run pytest tests/unit/ -v
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Run unit tests
+        run: uv run pytest tests/unit/ -v
 
   discover-integration-tests:
+    name: Discover Integration Tests
     runs-on: ubuntu-latest
     outputs:
       tests: ${{ steps.find.outputs.tests }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Find integration test files
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Find test files
         id: find
         run: |
-          # Find all test files except lance (requires optional dep)
           TESTS=$(ls tests/integration/tests/test_*.py | grep -v test_storage_lance | xargs -n1 basename | sed 's/\.py$//' | jq -R -s -c 'split("\n") | map(select(length > 0))')
           echo "tests=$TESTS" >> $GITHUB_OUTPUT
-          echo "Found tests: $TESTS"
 
   integration-tests:
+    name: Integration Test (${{ matrix.test }})
     needs: discover-integration-tests
     runs-on: ubuntu-latest
     strategy:
@@ -58,7 +92,14 @@ jobs:
       matrix:
         test: ${{ fromJson(needs.discover-integration-tests.outputs.tests) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v4
-      - run: uv sync --extra dev
-      - run: uv run pytest tests/integration/tests/${{ matrix.test }}.py -v
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Run ${{ matrix.test }}
+        run: uv run pytest tests/integration/tests/${{ matrix.test }}.py -v

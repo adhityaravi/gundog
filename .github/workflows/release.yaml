@@ -4,26 +4,29 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Dry run (no publish)'
+        description: Dry run (no publish)
         required: false
         default: false
         type: boolean
 
 jobs:
   quality:
+    name: Quality
     uses: ./.github/workflows/_quality_checks.yaml
 
   release:
+    name: Release to PyPI
     needs: quality
     runs-on: ubuntu-latest
     concurrency: release
     permissions:
-      id-token: write      # For PyPI OIDC
-      contents: write      # For creating tags/releases
+      id-token: write
+      contents: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # Full history for semantic-release
+          fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure git
@@ -31,68 +34,67 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - uses: astral-sh/setup-uv@v4
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
 
-      - run: uv sync --extra dev
+      - name: Install dependencies
+        run: uv sync --extra dev
 
-      - name: Check for releasable commits
-        id: check
+      - name: Determine version
+        id: version
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(uv run semantic-release version --print 2>/dev/null || echo "")
           if [ -n "$VERSION" ]; then
-            echo "release=true" >> $GITHUB_OUTPUT
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-            echo "Will release version: $VERSION"
+            echo "new=true" >> $GITHUB_OUTPUT
+            echo "number=$VERSION" >> $GITHUB_OUTPUT
+            echo "New version: $VERSION"
           else
-            echo "release=false" >> $GITHUB_OUTPUT
-            echo "No releasable commits found (need feat/fix/perf commits)"
+            echo "new=false" >> $GITHUB_OUTPUT
+            echo "No releasable commits"
           fi
 
       - name: Update version files
-        if: steps.check.outputs.release == 'true'
+        if: steps.version.outputs.new == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          uv run semantic-release version --no-push --no-tag --no-changelog
+        run: uv run semantic-release version --no-push --no-tag --no-changelog
 
-      - name: Build
-        if: steps.check.outputs.release == 'true'
+      - name: Build package
+        if: steps.version.outputs.new == 'true'
         run: uv build
 
       - name: Publish to PyPI
-        if: steps.check.outputs.release == 'true' && inputs.dry_run == false
+        if: steps.version.outputs.new == 'true' && inputs.dry_run == false
         uses: pypa/gh-action-pypi-publish@release/v1
 
-      - name: Commit, tag, and push
-        if: steps.check.outputs.release == 'true' && inputs.dry_run == false
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit and tag
+        if: steps.version.outputs.new == 'true' && inputs.dry_run == false
         run: |
           git add pyproject.toml src/gundog/_version.py
-          git commit -m "chore(release): ${{ steps.check.outputs.version }}"
-          git tag "v${{ steps.check.outputs.version }}"
+          git commit -m "chore(release): ${{ steps.version.outputs.number }}"
+          git tag "v${{ steps.version.outputs.number }}"
           git push origin main --follow-tags
 
-      - name: Create GitHub Release
-        if: steps.check.outputs.release == 'true' && inputs.dry_run == false
+      - name: Create GitHub release
+        if: steps.version.outputs.new == 'true' && inputs.dry_run == false
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "v${{ steps.check.outputs.version }}" \
-            --title "v${{ steps.check.outputs.version }}" \
+          gh release create "v${{ steps.version.outputs.number }}" \
+            --title "v${{ steps.version.outputs.number }}" \
             --generate-notes \
             dist/*
 
       - name: Summary
         run: |
-          if [ "${{ steps.check.outputs.release }}" == "true" ]; then
+          if [ "${{ steps.version.outputs.new }}" == "true" ]; then
             if [ "${{ inputs.dry_run }}" == "true" ]; then
-              echo "🧪 Dry run complete. Would release v${{ steps.check.outputs.version }}"
+              echo "Dry run: would release v${{ steps.version.outputs.number }}"
             else
-              echo "🚀 Released v${{ steps.check.outputs.version }} to PyPI and GitHub"
+              echo "Released v${{ steps.version.outputs.number }}"
             fi
           else
-            echo "ℹ️ No release needed - no feat/fix/perf commits since last tag"
+            echo "No release needed"
           fi
