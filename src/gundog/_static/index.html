@@ -104,6 +104,9 @@ main {
   transition: border-color 0.15s;
 }
 .result:hover { border-color: var(--accent); }
+.result.no-link { cursor: default; }
+.result.no-link:hover { border-color: var(--border); }
+.result.no-link .result-name { color: var(--text); }
 .result-name {
   font-weight: 500;
   color: var(--accent);
@@ -195,16 +198,28 @@ function renderSidebar(data) {
     html += `<div class="section-title">Direct Matches (${data.direct.length})</div>`;
     data.direct.forEach(r => {
       const typeClass = r.type === "code" ? "code" : "";
-      const href = r.url || "#";
-      html += `
-        <a class="result" href="${href}" target="_blank" rel="noopener">
-          <div class="result-name">${r.name}</div>
-          <div class="result-meta">
-            <span class="score">${Math.round(r.score * 100)}%</span>
-            <span class="type ${typeClass}">${r.type}</span>
-            ${r.lines ? `<span>L${r.lines}</span>` : ""}
-          </div>
-        </a>`;
+      const hasUrl = r.url && r.url !== "";
+      if (hasUrl) {
+        html += `
+          <a class="result" href="${r.url}" target="_blank" rel="noopener">
+            <div class="result-name">${r.name}</div>
+            <div class="result-meta">
+              <span class="score">${Math.round(r.score * 100)}%</span>
+              <span class="type ${typeClass}">${r.type}</span>
+              ${r.lines ? `<span>L${r.lines}</span>` : ""}
+            </div>
+          </a>`;
+      } else {
+        html += `
+          <div class="result no-link" title="${r.path}">
+            <div class="result-name">${r.name}</div>
+            <div class="result-meta">
+              <span class="score">${Math.round(r.score * 100)}%</span>
+              <span class="type ${typeClass}">${r.type}</span>
+              ${r.lines ? `<span>L${r.lines}</span>` : ""}
+            </div>
+          </div>`;
+      }
     });
   }
 
@@ -212,16 +227,28 @@ function renderSidebar(data) {
     html += `<div class="section-title">Related (${data.related.length})</div>`;
     data.related.slice(0, 20).forEach(r => {
       const typeClass = r.type === "code" ? "code" : "";
-      const href = r.url || "#";
-      html += `
-        <a class="result" href="${href}" target="_blank" rel="noopener">
-          <div class="result-name">${r.name}</div>
-          <div class="result-meta">
-            <span class="score">${Math.round(r.weight * 100)}%</span>
-            <span class="type ${typeClass}">${r.type}</span>
-            <span>via ${r.via_name}</span>
-          </div>
-        </a>`;
+      const hasUrl = r.url && r.url !== "";
+      if (hasUrl) {
+        html += `
+          <a class="result" href="${r.url}" target="_blank" rel="noopener">
+            <div class="result-name">${r.name}</div>
+            <div class="result-meta">
+              <span class="score">${Math.round(r.weight * 100)}%</span>
+              <span class="type ${typeClass}">${r.type}</span>
+              <span>via ${r.via_name}</span>
+            </div>
+          </a>`;
+      } else {
+        html += `
+          <div class="result no-link" title="${r.path}">
+            <div class="result-name">${r.name}</div>
+            <div class="result-meta">
+              <span class="score">${Math.round(r.weight * 100)}%</span>
+              <span class="type ${typeClass}">${r.type}</span>
+              <span>via ${r.via_name}</span>
+            </div>
+          </div>`;
+      }
     });
   }
 

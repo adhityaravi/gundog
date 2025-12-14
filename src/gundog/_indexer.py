@@ -9,6 +9,7 @@ from gundog._bm25 import BM25Index
 from gundog._chunker import Chunk, chunk_text, make_chunk_id, parse_chunk_id
 from gundog._config import GundogConfig, SourceConfig
 from gundog._embedder import Embedder
+from gundog._git import get_git_info
 from gundog._graph import SimilarityGraph
 from gundog._store import create_store
 from gundog._templates import get_exclusion_patterns
@@ -184,6 +185,12 @@ class Indexer:
                     "mtime": file_path.stat().st_mtime,
                     "content_hash": self._hash_content(content),
                 }
+
+                git_info = get_git_info(file_path)
+                if git_info is not None:
+                    file_meta["git_url"] = git_info.remote_url
+                    file_meta["git_branch"] = git_info.branch
+                    file_meta["git_relative_path"] = git_info.relative_path
 
                 if chunk_idx is not None:
                     file_meta["parent_file"] = parent_file

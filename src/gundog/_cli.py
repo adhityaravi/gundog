@@ -422,10 +422,6 @@ def serve(
         int,
         typer.Option("--port", "-p", help="Port to bind to"),
     ] = 8000,
-    github: Annotated[
-        str,
-        typer.Option("--github", "-g", help="GitHub repo URL for links"),
-    ] = "",
     title: Annotated[
         str,
         typer.Option("--title", "-t", help="Custom title for the web UI"),
@@ -440,7 +436,7 @@ def serve(
 
     cfg = load_config_for_query(config, index_path)
     console.print(f"[dim]Starting server at http://{host}:{port}[/dim]")
-    run_server(cfg, host=host, port=port, github_base=github, title=title)
+    run_server(cfg, host=host, port=port, title=title)
 
 
 def main() -> None:

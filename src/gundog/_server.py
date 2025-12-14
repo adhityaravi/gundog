@@ -8,7 +8,7 @@ from gundog._config import GundogConfig
 from gundog._query import QueryEngine
 
 
-def create_app(config: GundogConfig, github_base: str = "", title: str = "gundog") -> Any:
+def create_app(config: GundogConfig, title: str = "gundog") -> Any:
     """Create FastAPI application."""
     try:
         from fastapi import FastAPI, Query
@@ -27,13 +27,26 @@ def create_app(config: GundogConfig, github_base: str = "", title: str = "gundog
 
     engine = QueryEngine(config)
 
-    def github_url(path: str, lines: str | None = None) -> str:
-        if not github_base:
+    def build_file_url(result: dict) -> str:
+        """Build URL from per-file git metadata."""
+        git_url = result.get("git_url")
+        git_branch = result.get("git_branch")
+        git_relative_path = result.get("git_relative_path")
+
+        if not git_url or not git_branch or not git_relative_path:
             return ""
-        url = f"{github_base.rstrip('/')}/blob/main/{path}"
+
+        url = f"{git_url}/blob/{git_branch}/{git_relative_path}"
+
+        lines = result.get("lines")
         if lines:
             start, end = lines.split("-")
-            url += f"#L{start}-L{end}"
+            # GitLab uses #L10-20, GitHub uses #L10-L20
+            if "gitlab" in git_url.lower():
+                url += f"#L{start}-{end}"
+            else:
+                url += f"#L{start}-L{end}"
+
         return url
 
     @app.get("/api/query")
@@ -51,7 +64,7 @@ def create_app(config: GundogConfig, github_base: str = "", title: str = "gundog
                     "type": d["type"],
                     "score": d["score"],
                     "lines": d.get("lines"),
-                    "url": github_url(d["path"], d.get("lines")),
+                    "url": build_file_url(d),
                 }
                 for d in result.direct
             ],
@@ -63,7 +76,7 @@ def create_app(config: GundogConfig, github_base: str = "", title: str = "gundog
                     "via": r["via"],
                     "via_name": Path(r["via"]).name,
                     "weight": r["edge_weight"],
-                    "url": github_url(r["path"]),
+                    "url": build_file_url(r),
                 }
                 for r in result.related
             ],
@@ -84,7 +97,6 @@ def run_server(
     config: GundogConfig,
     host: str = "127.0.0.1",
     port: int = 8000,
-    github_base: str = "",
     title: str = "gundog",
 ) -> None:
     """Start the server."""
@@ -93,5 +105,5 @@ def run_server(
     except ImportError as e:
         raise ImportError("Install serve extras: pip install gundog[serve]") from e
 
-    app = create_app(config, github_base, title)
+    app = create_app(config, title)
     uvicorn.run(app, host=host, port=port)
