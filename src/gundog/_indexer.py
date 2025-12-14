@@ -128,13 +128,13 @@ class Indexer:
         for chunk in chunks:
             chunk_id = make_chunk_id(file_id, chunk.index)
             chunk_text_with_context = (
-                f"Path: {file_path}\n"
-                f"Chunk {chunk.index + 1}/{len(chunks)}\n\n"
-                f"{chunk.text}"
+                f"Path: {file_path}\nChunk {chunk.index + 1}/{len(chunks)}\n\n{chunk.text}"
             )
             start_line = content[: chunk.start_char].count("\n") + 1
             end_line = content[: chunk.end_char].count("\n") + 1
-            items.append((chunk_id, chunk_text_with_context, file_path, file_type, start_line, end_line))
+            items.append(
+                (chunk_id, chunk_text_with_context, file_path, file_type, start_line, end_line)
+            )
 
         return items
 

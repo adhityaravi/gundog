@@ -1,6 +1,6 @@
 [project]
 name = "gundog"
-version = "1.0.0"
+version = "0.1.0"
 description = "Semantic embedding validation tool for ADRs and code"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -117,6 +117,7 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 
 [tool.semantic_release]
+major_on_zero = false
 version_toml = ["pyproject.toml:project.version"]
 version_variables = ["src/gundog/_version.py:__version__"]
 branch = "main"
