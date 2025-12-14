@@ -22,7 +22,9 @@ Use it for LLM context retrieval, exploring unfamiliar codebases, or as a dynami
 
 Your codebase is full of implicit connections that aren't explicit. The ADR explaining your auth strategy relates to the login handler, which relates to the session middleware but nothing links them. Docs drift from implementation. Knowledge lives in silos.
 
-There are some tools that solves this problem. Especially, credit where it's due - the core idea of gundog is based on the much more mature [SeaGOAT](https://github.com/kantord/SeaGOAT) project. But my particular needs were ever so slightly different. I wanted a clean map of data chunks from wide spread data sources and their correlation based on a natural language query. SeaGOAT provides rather a flat but more accurate pointer to a specific data chunk from a single git repository. Basically, I wanted a [Obsidian graph view](https://help.obsidian.md/plugins/graph) of my docs controlled based on a natural language query without having to go through the pain of using.. well.. Obsidian. And wrapping `SeaGOAT` with some scripts was limiting and also hard to distribute.
+There are some tools that solves this problem. Especially, credit where it's due - the core idea of gundog is based on the much more mature [SeaGOAT](https://github.com/kantord/SeaGOAT) project. But my particular needs were ever so slightly different.
+
+I wanted a clean map of data chunks from wide spread data sources and their correlation based on a natural language query. `SeaGOAT` provides rather a flat but more accurate pointer to a specific data chunk from a single git repository. Basically, I wanted a [Obsidian graph view](https://help.obsidian.md/plugins/graph) of my docs controlled based on a natural language query without having to go through the pain of using.. well.. Obsidian. And wrapping `SeaGOAT` with some scripts was limiting and also hard to distribute.
 
 Gundog builds these connections automatically. Vector search finds semantically related content, BM25 catches exact keyword matches, and graph expansion surfaces files you didn't know to look for.
 
