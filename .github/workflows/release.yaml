@@ -8,6 +8,11 @@ on:
         required: false
         default: false
         type: boolean
+      pre_release:
+        description: Mark as pre-release
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   quality:
@@ -81,6 +86,7 @@ jobs:
           gh release create "v${{ steps.version.outputs.number }}" \
             --title "v${{ steps.version.outputs.number }}" \
             --generate-notes \
+            ${{ inputs.pre_release && '--prerelease' || '' }} \
             dist/*
 
       - name: Summary
