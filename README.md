@@ -5,7 +5,7 @@
   <a href="https://pypi.org/project/gundog/"><img src="https://img.shields.io/pypi/pyversions/gundog" alt="Python"></a>
   <a href="https://github.com/adhityaravi/gundog/releases"><img src="https://img.shields.io/github/v/release/adhityaravi/gundog?include_prereleases&label=pre-release&color=orange" alt="Pre-release"></a>
   <a href="https://github.com/adhityaravi/gundog/actions"><img src="https://img.shields.io/github/actions/workflow/status/adhityaravi/gundog/pull_request.yaml?label=CI" alt="CI"></a>
-  <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff"></a>
+  <a href="https://github.com/astral-sh/uv"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json" alt="uv"></a>
 </p>
 
 <p align="center">
@@ -73,7 +73,7 @@ storage:
 gundog index
 ```
 
-First run downloads the embedding model (~130MB for the default). You can use any [sentence-transformers model](https://sbert.net/docs/sentence_transformer/pretrained_models.html). Subsequent runs are incremental—only re-indexes changed files.
+First run downloads the embedding model (~130MB for the default). You can use any [sentence-transformers model](https://sbert.net/docs/sentence_transformer/pretrained_models.html). Subsequent runs are incremental and only re-indexes changed files.
 
 **3. Search:**
 
