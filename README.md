@@ -2,13 +2,13 @@
 
 Gundog is a local semantic retrieval engine for your codebase. It finds relevant code and documentation by understanding *what you mean*, not just matching keywords.
 
-Point it at your docs and code. It embeds everything into vectors, builds a similarity graph connecting related files, and combines semantic search with keyword matching. Ask "how does auth work?" and it retrieves the login handler, session middleware, and the ADR that explains why you chose JWT—even if none of them contain the word "auth".
+Point it at your docs and code. It embeds everything into vectors, builds a similarity graph connecting related files, and combines semantic search with keyword matching. Ask "how does auth work?" and it retrieves the login handler, session middleware, and the ADR that explains why you chose JWT even if none of them contain the word "auth".
 
 Use it for LLM context retrieval, exploring unfamiliar codebases, or as a dynamic documentation explorer. Runs entirely on your machine.
 
 ## The Problem
 
-Your codebase is full of implicit connections that aren't explicit. The ADR explaining your auth strategy relates to the login handler, which relates to the session middleware—but nothing links them. Docs drift from implementation. Knowledge lives in silos.
+Your codebase is full of implicit connections that aren't explicit. The ADR explaining your auth strategy relates to the login handler, which relates to the session middleware but nothing links them. Docs drift from implementation. Knowledge lives in silos.
 
 Tools like Obsidian solve this with manual linking. But who has time to maintain a knowledge graph alongside their code?
 
