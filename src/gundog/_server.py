@@ -33,7 +33,7 @@ def create_app(config: GundogConfig, title: str = "gundog") -> Any:
         git_branch = result.get("git_branch")
         git_relative_path = result.get("git_relative_path")
 
-        if not all([git_url, git_branch, git_relative_path]):
+        if not git_url or not git_branch or not git_relative_path:
             return ""
 
         url = f"{git_url}/blob/{git_branch}/{git_relative_path}"
