@@ -141,8 +141,9 @@ Starts a web UI for interactive queries with a visual graph.
 gundog serve                              # starts at http://127.0.0.1:8000
 gundog serve --port 3000                  # custom port
 gundog serve --title "My Project"         # custom title
-gundog serve --github https://github.com/user/repo  # adds links to files
 ```
+
+File links are auto-detected from git repos. Files in a git repo with a remote get clickable links to GitHub/GitLab. Non-git files show the path on hover.
 
 Requires the serve extra: `pip install gundog[serve]`
 

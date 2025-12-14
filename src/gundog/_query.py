@@ -132,6 +132,11 @@ class QueryEngine:
         if result.metadata.get("start_line"):
             entry["lines"] = f"{result.metadata['start_line']}-{result.metadata['end_line']}"
 
+        if result.metadata.get("git_url"):
+            entry["git_url"] = result.metadata["git_url"]
+            entry["git_branch"] = result.metadata["git_branch"]
+            entry["git_relative_path"] = result.metadata["git_relative_path"]
+
         return entry
 
     def _expand_graph(
@@ -181,6 +186,16 @@ class QueryEngine:
             }
             if chunk_idx is not None:
                 entry["chunk"] = chunk_idx
+
+            # Add git metadata from store
+            store_result = self.store.get(node_id)
+            if store_result:
+                _, metadata = store_result
+                if metadata.get("git_url"):
+                    entry["git_url"] = metadata["git_url"]
+                    entry["git_branch"] = metadata["git_branch"]
+                    entry["git_relative_path"] = metadata["git_relative_path"]
+
             related.append(entry)
 
         related.sort(key=lambda x: -x["edge_weight"])
