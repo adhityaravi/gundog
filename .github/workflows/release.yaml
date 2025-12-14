@@ -55,11 +55,11 @@ jobs:
             echo "No releasable commits"
           fi
 
-      - name: Update version files
-        if: steps.version.outputs.new == 'true'
+      - name: Bump version, commit, and tag
+        if: steps.version.outputs.new == 'true' && inputs.dry_run == false
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: uv run semantic-release version --no-push --no-tag --no-changelog
+        run: uv run semantic-release version --no-push
 
       - name: Build package
         if: steps.version.outputs.new == 'true'
@@ -69,13 +69,9 @@ jobs:
         if: steps.version.outputs.new == 'true' && inputs.dry_run == false
         uses: pypa/gh-action-pypi-publish@release/v1
 
-      - name: Commit and tag
+      - name: Push to GitHub
         if: steps.version.outputs.new == 'true' && inputs.dry_run == false
-        run: |
-          git add pyproject.toml src/gundog/_version.py
-          git commit -m "chore(release): ${{ steps.version.outputs.number }}"
-          git tag "v${{ steps.version.outputs.number }}"
-          git push origin main --follow-tags
+        run: git push origin main --follow-tags
 
       - name: Create GitHub release
         if: steps.version.outputs.new == 'true' && inputs.dry_run == false
