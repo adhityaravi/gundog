@@ -8,6 +8,10 @@
   <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff"></a>
 </p>
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/0c4d8529-aa09-4361-8efc-17574e6d9dd3" alt="gundog demo" width="720">
+</p>
+
 Gundog is a local semantic retrieval engine for your high volume corpus. It finds relevant code and documentation by understanding *what you mean*, not just matching keywords.
 
 Point it at your docs and code. It embeds everything into vectors, builds a similarity graph connecting related files, and combines semantic search with keyword matching. Ask "how does auth work?" and it retrieves the login handler, session middleware, and the ADR that explains why you chose JWT even if none of them contain the word "auth".
