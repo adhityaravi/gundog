@@ -15,6 +15,10 @@ Point it at your docs and code. It embeds everything into vectors, builds a simi
 
 Use it for LLM context retrieval, exploring unfamiliar codebases, or as a dynamic documentation explorer. Runs entirely on your machine.
 
+<p align="center">
+  <img src="assets/webui.png" alt="gundog web UI" width="900">
+</p>
+
 ## The Problem
 
 Your codebase is full of implicit connections that aren't explicit. The ADR explaining your auth strategy relates to the login handler, which relates to the session middleware but nothing links them. Docs drift from implementation. Knowledge lives in silos.
