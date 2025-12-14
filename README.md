@@ -217,7 +217,7 @@ Results are automatically deduplicated by file, showing the best-matching chunk.
 
 ## What Gundog Doesn't Do
 
-- **Chat**: It's retrieval, not generation. Feed results to your LLM of choice.
+- **Chat**: It does not use a LLM rather uses vector embedding models. Hence, it's retrieval, not generation. Feed results to your LLM of choice.
 - **Cloud anything**: Everything runs locally. Your code stays on your machine.
 
 ## Why "Gundog"?
@@ -227,12 +227,11 @@ Gundogs retrieve things. That's the whole job. Point at what you want, they fetc
 ## Development
 
 ```bash
-uv sync --extra dev      # install dev dependencies
-uv run ruff check .      # lint
-uv run ruff format .     # format
-uv run pyright src       # type check
-uv run pytest            # test
-uv run tox               # run all checks
+uv run tox               # run all checks (lint, fmt, static, unit)
+uv run tox -e lint       # linting only
+uv run tox -e fmt        # format check only
+uv run tox -e static     # type check only
+uv run tox -e unit       # tests with coverage
 ```
 
 ---
