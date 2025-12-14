@@ -226,6 +226,13 @@ Gundogs retrieve things. That's the whole job. Point at what you want, they fetc
 
 ## Development
 
+- Fork the repo
+- Create a PR to gundog's main
+- Make sure the CI passes
+- Profit
+
+To run checks locally
+
 ```bash
 uv run tox               # run all checks (lint, fmt, static, unit)
 uv run tox -e lint       # linting only
