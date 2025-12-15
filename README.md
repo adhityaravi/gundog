@@ -12,27 +12,29 @@
   <img src="https://github.com/user-attachments/assets/0c4d8529-aa09-4361-8efc-17574e6d9dd3" alt="gundog demo" width="720">
 </p>
 
-Gundog is a local semantic retrieval engine for your high volume corpus. It finds relevant code and documentation by understanding *what you mean*, not just matching keywords.
+Gundog is a local semantic retrieval engine for your high volume corpus. It finds relevant code and documentation by matching the semantics of your query and not just matching keywords.
 
-Point it at your docs and code. It embeds everything into vectors, builds a similarity graph connecting related files, and combines semantic search with keyword matching. Ask "how does auth work?" and it retrieves the login handler, session middleware, and the ADR that explains why you chose JWT even if none of them contain the word "auth".
+Point it at your docs or code or both. It embeds everything into vectors, builds a similarity graph connecting related files, and combines semantic search with keyword matching. Ask "how does auth work?" and it retrieves the login handler, session middleware, and the ADR that explains why you chose JWT even if none of them contain the word "auth".
 
 Use it for LLM context retrieval, exploring unfamiliar codebases, or as a dynamic documentation explorer. Runs entirely on your machine.
 
-## The Problem
+## What I was looking for
 
-Your codebase is full of implicit connections that aren't explicit. The ADR explaining your auth strategy relates to the login handler, which relates to the session middleware but nothing links them. Docs drift from implementation. Knowledge lives in silos.
+Any codebase is full of implicit connections that aren't explicit. The ADR explaining your auth strategy relates to the login handler, which relates to the session middleware but nothing links them. Docs drift from implementation. Knowledge lives in silos.
 
-There are some tools that solves this problem. Especially, credit where it's due - the core idea of gundog is based on the much more mature [SeaGOAT](https://github.com/kantord/SeaGOAT) project. But my particular needs were ever so slightly different.
+There are some tools that solved this problem for me to a certain extent. Especially, credit where it's due, the core idea of gundog is based on the much more mature [SeaGOAT](https://github.com/kantord/SeaGOAT) project and the `semtools`. But my particular needs were ever so slightly different.
 
-I wanted a clean map of data chunks from wide spread data sources and their correlation based on a natural language query. `SeaGOAT` provides rather a flat but more accurate pointer to a specific data chunk from a single git repository. Basically, I wanted a [Obsidian graph view](https://help.obsidian.md/plugins/graph) of my docs controlled based on a natural language query without having to go through the pain of using.. well.. Obsidian. And wrapping `SeaGOAT` with some scripts was limiting and also hard to distribute.
+I wanted a clean map of all related data chunks from wide spread data sources based on a natural language query. `SeaGOAT` provides rather a ranked but flat and accurate pointer to specific data chunks from a single git repository. Basically, I wanted a [Obsidian graph view](https://help.obsidian.md/plugins/graph) of my docs controlled based on a natural language query without having to go through the pain of using.. well.. Obsidian.
 
-Gundog builds these connections automatically. Vector search finds semantically related content, BM25 catches exact keyword matches, and graph expansion surfaces files you didn't know to look for.
+Gundog builds these connections across repositories/data sources automatically. Vector search finds semantically related content, BM25 catches exact keyword matches, and graph expansion surfaces files you didn't know to look for.
 
 ## Install
 
 ```bash
 pip install gundog
 ```
+
+ATM I'm keeping most features as optional till I find out what combinations work the best.
 
 Optional extras:
 
@@ -135,6 +137,8 @@ gundog query "api design" --type docs        # filter by type (if sources have t
 gundog query "auth flow" --graph             # opens visual graph of results
 ```
 
+The `query` cmd is slow at the moment because it freshly loads the embedding model to embed the query every time. But using the web UI is realtime because it uses a persistent server. Eventually the idea is to make both the cli and the web UI work compulsorily with the same persistent service.
+
 ### `gundog serve`
 
 Starts a web UI for interactive queries with a visual graph.
@@ -217,8 +221,8 @@ Results are automatically deduplicated by file, showing the best-matching chunk.
 
 ## What Gundog Doesn't Do
 
-- **Chat**: It does not use a LLM rather uses vector embedding models. Hence, it's retrieval, not generation. Feed results to your LLM of choice.
-- **Cloud anything**: Everything runs locally. Your code stays on your machine.
+- **Chat**: Not AI, not an LLM. Just uses vector embedding models in the BG. Hence, it's retrieval, not generation.
+- **Cloud anything**: Everything runs locally. Your code stays on your machine. (GPU will be utilized if available but not necessary).
 
 ## Why "Gundog"?
 
@@ -240,7 +244,3 @@ uv run tox -e fmt        # format check only
 uv run tox -e static     # type check only
 uv run tox -e unit       # tests with coverage
 ```
-
----
-
-*Small. Lightweight. Ferocious.*
