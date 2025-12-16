@@ -3,7 +3,6 @@
 <p align="center">
   <a href="https://pypi.org/project/gundog/"><img src="https://img.shields.io/pypi/v/gundog" alt="PyPI"></a>
   <a href="https://pypi.org/project/gundog/"><img src="https://img.shields.io/pypi/pyversions/gundog" alt="Python"></a>
-  <a href="https://github.com/adhityaravi/gundog/releases"><img src="https://img.shields.io/github/v/release/adhityaravi/gundog?include_prereleases&label=pre-release&color=orange" alt="Pre-release"></a>
   <a href="https://github.com/adhityaravi/gundog/actions"><img src="https://img.shields.io/github/actions/workflow/status/adhityaravi/gundog/pull_request.yaml?label=CI" alt="CI"></a>
   <a href="https://github.com/astral-sh/uv"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json" alt="uv"></a>
 </p>
