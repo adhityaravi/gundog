@@ -16,13 +16,7 @@ Gundog is a local semantic retrieval engine for your high volume corpus. It find
 
 Point it at your docs or code or both. It embeds everything into vectors, builds a similarity graph connecting related files, and combines semantic search with keyword matching. Ask "how does auth work?" and it retrieves the login handler, session middleware, and the ADR that explains why you chose JWT even if none of them contain the word "auth".
 
-Use it for LLM context retrieval, exploring unfamiliar codebases, or as a dynamic documentation explorer. Runs entirely on your machine.
-
-## What I was looking for
-
-Any codebase is full of implicit connections that aren't explicit. The ADR explaining your auth strategy relates to the login handler, which relates to the session middleware but nothing links them. Docs drift from implementation. Knowledge lives in silos.
-
-There are some tools that solved this problem for me to a certain extent. Especially, credit where it's due, the core idea of gundog is based on the much more mature [SeaGOAT](https://github.com/kantord/SeaGOAT) project and the `semtools`. But my particular needs were ever so slightly different.
+## Why?
 
 I wanted a clean map of all related data chunks from wide spread data sources based on a natural language query. `SeaGOAT` provides rather a ranked but flat and accurate pointer to specific data chunks from a single git repository. Basically, I wanted a [Obsidian graph view](https://help.obsidian.md/plugins/graph) of my docs controlled based on a natural language query without having to go through the pain of using.. well.. Obsidian.
 
@@ -218,15 +212,6 @@ chunking:
 ```
 
 Results are automatically deduplicated by file, showing the best-matching chunk.
-
-## What Gundog Doesn't Do
-
-- **Chat**: Not AI, not an LLM. Just uses vector embedding models in the BG. Hence, it's retrieval, not generation.
-- **Cloud anything**: Everything runs locally. Your code stays on your machine. (GPU will be utilized if available but not necessary).
-
-## Why "Gundog"?
-
-Gundogs retrieve things. That's the whole job. Point at what you want, they fetch it. Small, focused, good at one thing.
 
 ## Development
 
