@@ -454,8 +454,8 @@ def daemon_add(
     if created:
         console.print(f"[green]Created config:[/green] {DaemonConfig.get_config_path()}")
 
-    # Resolve and validate path
-    resolved = expand_path(path)
+    # Resolve and validate path (ensure absolute)
+    resolved = expand_path(path).resolve()
     if not resolved.exists():
         console.print(f"[red]Error:[/red] Path does not exist: {resolved}")
         raise typer.Exit(1)

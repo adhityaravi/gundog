@@ -200,6 +200,19 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
             html = html.replace("{{TITLE}}", "gundog")
             return html
 
+    # Warmup on startup - pre-load default index and embedding model
+    @app.on_event("startup")
+    async def warmup() -> None:
+        if config.default_index:
+            try:
+                print(f"Warming up: loading index '{config.default_index}'...")
+                engine = manager.ensure_loaded()
+                # Run a dummy query to initialize the embedding model
+                engine.query("warmup", top_k=1)
+                print("Warmup complete - ready for queries")
+            except Exception as e:
+                print(f"Warmup failed (non-fatal): {e}")
+
     return app
 
 
