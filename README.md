@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/0c4d8529-aa09-4361-8efc-17574e6d9dd3" alt="gundog demo" width="720">
+  <img src="https://github.com/user-attachments/assets/ddbf2a74-140d-4c3c-be91-18e657c8b8c8" alt="gundog demo" width="720">
 </p>
 
 Gundog is a local semantic retrieval engine for your high volume corpus. It finds relevant code and documentation by matching the semantics of your query and not just matching keywords.
