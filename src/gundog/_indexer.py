@@ -43,6 +43,20 @@ class Indexer:
         path_str = str(path)
         return any(fnmatch(path_str, pattern) for pattern in patterns)
 
+    def _is_text_file(self, path: Path, sample_size: int = 8192) -> bool:
+        """Check if a file is text (not binary)."""
+        try:
+            with open(path, "rb") as f:
+                chunk = f.read(sample_size)
+            # Check for null bytes (binary indicator)
+            if b"\x00" in chunk:
+                return False
+            # Try to decode as UTF-8
+            chunk.decode("utf-8")
+            return True
+        except (OSError, UnicodeDecodeError):
+            return False
+
     def _parse_gitignore(self, gitignore_path: Path) -> list[str]:
         """Parse .gitignore file and convert to glob patterns."""
         if not gitignore_path.exists():
@@ -97,7 +111,11 @@ class Indexer:
 
         files = []
         for file_path in source_path.glob(source.glob):
-            if file_path.is_file() and not self._should_ignore(file_path, patterns):
+            if (
+                file_path.is_file()
+                and not self._should_ignore(file_path, patterns)
+                and self._is_text_file(file_path)
+            ):
                 files.append(file_path)
 
         return files
