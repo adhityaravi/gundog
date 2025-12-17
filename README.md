@@ -178,6 +178,11 @@ hybrid:
   bm25_weight: 0.5    # keyword search weight
   vector_weight: 0.5  # semantic search weight
 
+recency:
+  enabled: false      # boost recently modified files (opt-in, requires git)
+  weight: 0.15        # how much recency affects score (0-1)
+  half_life_days: 30  # days until recency boost decays to 50%
+
 chunking:
   enabled: false      # split files into chunks (opt-in)
   max_tokens: 512     # tokens per chunk
@@ -206,6 +211,19 @@ chunking:
 ```
 
 Results are automatically deduplicated by file, showing the best-matching chunk.
+
+### Recency boost
+
+For codebases where recent changes matter more, enable recency boosting. Files modified recently get a score boost based on their git commit history:
+
+```yaml
+recency:
+  enabled: true
+  weight: 0.15        # boost multiplier (0.15 = up to 15% boost)
+  half_life_days: 30  # file modified 30 days ago gets 50% of max boost
+```
+
+Uses exponential decay: a file modified today gets full boost, one modified `half_life_days` ago gets half, and older files approach zero. Requires files to be in a git repository.
 
 ### Daemon config
 

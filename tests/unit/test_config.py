@@ -9,6 +9,7 @@ from gundog._config import (
     EmbeddingConfig,
     GraphConfig,
     GundogConfig,
+    RecencyConfig,
     SourceConfig,
     StorageConfig,
 )
@@ -41,6 +42,14 @@ def test_graph_config_defaults():
     assert config.similarity_threshold == 0.65
     assert config.expand_threshold == 0.60
     assert config.max_expand_depth == 1
+
+
+def test_recency_config_defaults():
+    """Test RecencyConfig has expected defaults."""
+    config = RecencyConfig()
+    assert config.enabled is False
+    assert config.weight == 0.15
+    assert config.half_life_days == 30
 
 
 def test_gundog_config_load(temp_dir: Path):

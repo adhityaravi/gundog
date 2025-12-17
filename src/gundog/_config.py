@@ -63,6 +63,15 @@ class ChunkingConfig:
 
 
 @dataclass
+class RecencyConfig:
+    """Configuration for recency-based score boosting."""
+
+    enabled: bool = False  # Opt-in, requires git history
+    weight: float = 0.15  # How much recency affects final score (0-1)
+    half_life_days: int = 30  # Days until recency boost decays to 50%
+
+
+@dataclass
 class GundogConfig:
     """Root configuration object."""
 
@@ -72,6 +81,7 @@ class GundogConfig:
     graph: GraphConfig = field(default_factory=GraphConfig)
     hybrid: HybridConfig = field(default_factory=HybridConfig)
     chunking: ChunkingConfig = field(default_factory=ChunkingConfig)
+    recency: RecencyConfig = field(default_factory=RecencyConfig)
 
     @classmethod
     def load(cls, config_path: Path | None = None) -> "GundogConfig":
@@ -108,6 +118,9 @@ class GundogConfig:
         chunking_data = data.get("chunking", {})
         chunking = ChunkingConfig(**chunking_data) if chunking_data else ChunkingConfig()
 
+        recency_data = data.get("recency", {})
+        recency = RecencyConfig(**recency_data) if recency_data else RecencyConfig()
+
         return cls(
             sources=sources,
             embedding=embedding,
@@ -115,4 +128,5 @@ class GundogConfig:
             graph=graph,
             hybrid=hybrid,
             chunking=chunking,
+            recency=recency,
         )

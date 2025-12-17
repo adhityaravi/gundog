@@ -1,5 +1,7 @@
 """Query execution with graph expansion."""
 
+import math
+import time
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -49,6 +51,46 @@ class QueryEngine:
         if raw_score <= baseline:
             return 0.0
         return (raw_score - baseline) / (1 - baseline)
+
+    @staticmethod
+    def _compute_recency_score(git_timestamp: int | None, half_life_days: int) -> float:
+        """Compute recency score using exponential decay.
+
+        Returns a value between 0 and 1, where:
+        - 1.0 = modified just now
+        - 0.5 = modified half_life_days ago
+        - ~0 = very old
+        """
+        if git_timestamp is None:
+            return 0.0
+
+        now = time.time()
+        age_seconds = now - git_timestamp
+        age_days = age_seconds / 86400
+
+        if age_days <= 0:
+            return 1.0
+
+        # Exponential decay: score = 2^(-age/half_life)
+        return math.pow(2, -age_days / half_life_days)
+
+    def _apply_recency_boost(self, results: list[SearchResult]) -> list[SearchResult]:
+        """Apply recency boost to search results."""
+        if not self.config.recency.enabled:
+            return results
+
+        weight = self.config.recency.weight
+        half_life = self.config.recency.half_life_days
+
+        boosted = []
+        for result in results:
+            git_mtime = result.metadata.get("git_last_modified")
+            recency_score = self._compute_recency_score(git_mtime, half_life)
+            # Multiplicative boost: score * (1 + weight * recency_score)
+            new_score = min(1.0, result.score * (1 + weight * recency_score))
+            boosted.append(SearchResult(id=result.id, score=new_score, metadata=result.metadata))
+
+        return boosted
 
     def _fuse_results(
         self,
@@ -236,6 +278,9 @@ class QueryEngine:
         # Phase 1: Vector search
         search_results = self._vector_search(query_text, top_k, min_score)
         search_results = self._deduplicate_chunks(search_results)
+
+        # Apply recency boost before sorting
+        search_results = self._apply_recency_boost(search_results)
 
         if type_filter:
             search_results = [r for r in search_results if r.metadata.get("type") == type_filter]

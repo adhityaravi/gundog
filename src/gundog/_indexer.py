@@ -1,7 +1,9 @@
 """File discovery, embedding, and index management."""
 
 import hashlib
+import subprocess
 from fnmatch import fnmatch
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +44,41 @@ class Indexer:
         """Check if path matches any ignore pattern."""
         path_str = str(path)
         return any(fnmatch(path_str, pattern) for pattern in patterns)
+
+    def _get_git_blob_hash(self, file_path: Path) -> str | None:
+        """Get git blob hash for a file. Returns None if not tracked by git."""
+        try:
+            result = subprocess.run(
+                ["git", "ls-files", "-s", file_path.name],
+                cwd=file_path.parent,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                # Output format: "100644 <blob_hash> 0\t<filename>"
+                parts = result.stdout.strip().split()
+                if len(parts) >= 2:
+                    return parts[1]  # blob hash
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+            pass
+        return None
+
+    def _get_git_last_modified(self, file_path: Path) -> int | None:
+        """Get Unix timestamp of last commit that modified this file."""
+        try:
+            result = subprocess.run(
+                ["git", "log", "-1", "--format=%ct", "--", file_path.name],
+                cwd=file_path.parent,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return int(result.stdout.strip())
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError, ValueError):
+            pass
+        return None
 
     def _is_text_file(self, path: Path, sample_size: int = 8192) -> bool:
         """Check if a file is text (not binary)."""
@@ -121,7 +158,7 @@ class Indexer:
         return files
 
     def _needs_reindex(self, file_path: Path) -> bool:
-        """Check if file needs reindexing using mtime + content hash."""
+        """Check if file needs reindexing. Uses git blob hash if available, else mtime+hash."""
         file_id = str(file_path)
 
         result = self.store.get(file_id)
@@ -133,6 +170,13 @@ class Indexer:
 
         _, metadata = result
 
+        # Try git blob hash first (fast, reliable)
+        git_blob = self._get_git_blob_hash(file_path)
+        if git_blob is not None:
+            stored_blob = metadata.get("git_blob_hash")
+            return git_blob != stored_blob
+
+        # Fall back to mtime + content hash for non-git files
         current_mtime = file_path.stat().st_mtime
         if current_mtime == metadata.get("mtime"):
             return False
@@ -240,6 +284,16 @@ class Indexer:
                     "mtime": file_path.stat().st_mtime,
                     "content_hash": self._hash_content(content),
                 }
+
+                # Store git blob hash for faster incremental indexing
+                git_blob = self._get_git_blob_hash(file_path)
+                if git_blob:
+                    file_meta["git_blob_hash"] = git_blob
+
+                # Store git last modified timestamp for recency scoring
+                git_mtime = self._get_git_last_modified(file_path)
+                if git_mtime:
+                    file_meta["git_last_modified"] = git_mtime
 
                 git_info = get_git_info(file_path)
                 if git_info is not None:

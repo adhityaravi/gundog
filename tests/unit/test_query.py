@@ -1,5 +1,7 @@
 """Test query engine utilities."""
 
+import time
+
 from gundog._query import QueryEngine
 
 
@@ -44,3 +46,19 @@ class TestScoreRescaling:
         # Excellent match ~0.9 raw should show as high relevance
         result = QueryEngine._rescale_score(0.9, baseline=0.5)
         assert abs(result - 0.8) < 0.001  # (0.9 - 0.5) / 0.5 = 0.8
+
+
+def test_recency_score_none():
+    """None timestamp returns 0."""
+    assert QueryEngine._compute_recency_score(None, 30) == 0.0
+
+
+def test_recency_score_now():
+    """Current timestamp returns ~1.0."""
+    assert QueryEngine._compute_recency_score(int(time.time()), 30) > 0.99
+
+
+def test_recency_score_at_half_life():
+    """Score at half-life is 0.5."""
+    ts = int(time.time()) - (30 * 86400)
+    assert abs(QueryEngine._compute_recency_score(ts, 30) - 0.5) < 0.01
