@@ -18,7 +18,8 @@ def test_source_config_defaults():
     """Test SourceConfig has expected defaults."""
     source = SourceConfig(path="./adr", type="adr")
     assert source.glob == "**/*"
-    assert source.exclude == []
+    assert source.ignore == []
+    assert source.use_gitignore is True
 
 
 def test_embedding_config_defaults():
@@ -49,7 +50,7 @@ def test_gundog_config_load(temp_dir: Path):
     config_data = {
         "sources": [
             {"path": "./adr", "type": "adr", "glob": "**/*.md"},
-            {"path": "./src", "type": "code", "glob": "**/*.py", "exclude": ["**/__pycache__/**"]},
+            {"path": "./src", "type": "code", "glob": "**/*.py", "ignore": ["**/__pycache__/**"]},
         ],
         "embedding": {"model": "BAAI/bge-base-en-v1.5"},
         "storage": {"backend": "numpy", "path": ".gundog/index"},
@@ -68,7 +69,7 @@ def test_gundog_config_load(temp_dir: Path):
     assert len(config.sources) == 2
     assert config.sources[0].path == "./adr"
     assert config.sources[0].type == "adr"
-    assert config.sources[1].exclude == ["**/__pycache__/**"]
+    assert config.sources[1].ignore == ["**/__pycache__/**"]
 
     assert config.embedding.model == "BAAI/bge-base-en-v1.5"
     assert config.storage.backend == "numpy"

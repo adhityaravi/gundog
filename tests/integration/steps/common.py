@@ -34,8 +34,8 @@ def test_context():
         "chunking_enabled": False,
         "chunking_max_tokens": 512,
         "hybrid_enabled": True,
-        "exclusion_template": None,
-        "custom_excludes": [],
+        "ignore_preset": None,
+        "custom_ignores": [],
     }
 
 
@@ -75,8 +75,9 @@ def create_config(test_context) -> GundogConfig:
                 path=str(test_context["adr_dir"]),
                 type="adr",
                 glob="**/*.md",
-                exclusion_template=test_context.get("exclusion_template"),
-                exclude=test_context.get("custom_excludes", []),
+                ignore_preset=test_context.get("ignore_preset"),
+                ignore=test_context.get("custom_ignores", []),
+                use_gitignore=False,  # Disable for tests
             )
         )
 
@@ -86,8 +87,9 @@ def create_config(test_context) -> GundogConfig:
                 path=str(test_context["src_dir"]),
                 type="code",
                 glob="**/*.py",
-                exclusion_template=test_context.get("exclusion_template"),
-                exclude=test_context.get("custom_excludes", []),
+                ignore_preset=test_context.get("ignore_preset"),
+                ignore=test_context.get("custom_ignores", []),
+                use_gitignore=False,  # Disable for tests
             )
         )
 

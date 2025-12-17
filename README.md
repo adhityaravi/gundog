@@ -83,41 +83,15 @@ Returns ranked results with file paths and relevance scores. The daemon keeps th
 
 ## Commands
 
-You can use gundog with a config file OR with CLI flags directly. Config files are recommended:
-
-```bash
-# With config file (default: .gundog/config.yaml)
-gundog index
-gundog index -c /path/to/config.yaml
-
-# Without config file
-gundog index --source ./docs:*.md --source ./src:*.py
-```
-
 ### `gundog index`
 
 Scans your configured sources, embeds the content, and builds a searchable index.
 
 ```bash
-gundog index                                      # uses config file
-gundog index --rebuild                            # fresh index from scratch
-gundog index -s ./docs:*.md -s ./src:*.py         # no config needed
-gundog index -s ./docs -i ./my-index              # custom index location
-gundog index -s ./src:*.py -e '**/test_*'         # exclude test files
+gundog index                    # uses .gundog/config.yaml
+gundog index -c /path/to.yaml   # custom config file
+gundog index --rebuild          # fresh index from scratch
 ```
-
-Source format: `path`, `path:glob`, or `path:type:glob`
-
-Exclude patterns use fnmatch syntax (e.g., `**/test_*`, `**/__pycache__/*`).
-
-**Exclusion templates** provide predefined patterns for common languages:
-
-```bash
-gundog index -s ./src:*.py --exclusion-template python  # ignores __pycache__, .venv, etc.
-gundog index -s ./src:*.ts --exclusion-template typescript
-```
-
-Available templates: `python`, `javascript`, `typescript`, `go`, `rust`, `java`
 
 ### `gundog query`
 
@@ -181,9 +155,10 @@ sources:
   - path: ./src
     glob: "**/*.py"
     type: code                    # optional - for filtering with --type
-    exclusion_template: python    # optional - predefined excludes
-    exclude:                      # optional - additional patterns to skip
+    ignore_preset: python         # optional - predefined ignores
+    ignore:                       # optional - additional patterns to skip
       - "**/test_*"
+    use_gitignore: true           # default - auto-read .gitignore
 
 embedding:
   # Any sentence-transformers model works: https://sbert.net/docs/sentence_transformer/pretrained_models.html
@@ -209,7 +184,15 @@ chunking:
   overlap_tokens: 50  # overlap between chunks
 ```
 
-The `type` field is optional. If you want to filter results by category (e.g., `--type code`), assign types to your sources. Any string works. To use a type without a config file, use the format `path:type:glob` when specifying sources.
+The `type` field is optional. If you want to filter results by category, assign types to your sources. Any string works.
+
+### Ignore patterns
+
+Control which files are excluded from indexing:
+
+- **`ignore`**: List of glob patterns to skip (e.g., `**/test_*`, `**/__pycache__/*`)
+- **`ignore_preset`**: Predefined patterns for common languages: `python`, `javascript`, `typescript`, `go`, `rust`, `java`
+- **`use_gitignore`**: Auto-read `.gitignore` from source directory (default: `true`)
 
 ### Chunking
 

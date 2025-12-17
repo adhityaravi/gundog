@@ -16,16 +16,9 @@ from rich.table import Table
 from rich.text import Text
 from rich.tree import Tree
 
-from gundog._config import (
-    EmbeddingConfig,
-    GraphConfig,
-    GundogConfig,
-    SourceConfig,
-    StorageConfig,
-)
+from gundog._config import GundogConfig
 from gundog._daemon_config import DaemonConfig
 from gundog._indexer import Indexer
-from gundog._templates import ExclusionTemplate
 
 app = typer.Typer(
     name="gundog",
@@ -36,7 +29,6 @@ app = typer.Typer(
 console = Console()
 
 DEFAULT_CONFIG_PATH = Path(".gundog/config.yaml")
-DEFAULT_INDEX_PATH = Path(".gundog/index")
 
 
 def expand_path(path: str | Path) -> Path:
@@ -52,97 +44,20 @@ class OutputFormat(str, Enum):
     pretty = "pretty"
 
 
-def parse_source(source_str: str) -> SourceConfig:
-    """Parse a source string in format 'path:type:glob' or 'path:glob' or 'path'."""
-    parts = source_str.split(":")
-    if len(parts) == 1:
-        return SourceConfig(path=str(expand_path(parts[0])))
-    elif len(parts) == 2:
-        # Could be path:type or path:glob - treat as type if no glob chars
-        if any(c in parts[1] for c in "*?[]"):
-            return SourceConfig(path=str(expand_path(parts[0])), glob=parts[1])
-        return SourceConfig(path=str(expand_path(parts[0])), type=parts[1])
-    else:
-        return SourceConfig(path=str(expand_path(parts[0])), type=parts[1], glob=parts[2])
-
-
-def load_config_or_build(
-    config: Path | None,
-    sources: list[str] | None,
-    index: Path | None,
-    excludes: list[str] | None = None,
-    exclusion_template: ExclusionTemplate | None = None,
-) -> GundogConfig:
-    """Load config from file or build from CLI arguments."""
-    # Expand paths
-    if config:
-        config = expand_path(config)
-    if index:
-        index = expand_path(index)
-
-    # If sources are provided via CLI, build config from args (ignore config file)
-    if sources:
-        if not sources:
-            console.print("[red]Error:[/red] --source is required when not using a config file")
-            raise typer.Exit(1)
-
-        parsed_sources = [parse_source(s) for s in sources]
-        # Apply global excludes and exclusion template to all sources
-        for src in parsed_sources:
-            if excludes:
-                src.exclude = list(excludes)
-            if exclusion_template:
-                src.exclusion_template = exclusion_template
-
-        return GundogConfig(
-            sources=parsed_sources,
-            embedding=EmbeddingConfig(),
-            storage=StorageConfig(path=str(index or DEFAULT_INDEX_PATH)),
-            graph=GraphConfig(),
-        )
-
-    # Otherwise, load from config file
-    config_path = config or DEFAULT_CONFIG_PATH
+def load_config(config_path: Path | None) -> GundogConfig:
+    """Load config from file."""
+    path = expand_path(config_path) if config_path else DEFAULT_CONFIG_PATH
     try:
-        return GundogConfig.load(config_path)
+        return GundogConfig.load(path)
     except FileNotFoundError:
-        console.print(f"[red]Error:[/red] Config file not found: {config_path}")
+        console.print(f"[red]Error:[/red] Config file not found: {path}")
         console.print()
-        console.print("Either create a config file or use CLI flags:")
-        console.print("  gundog index --source './docs:adr:**/*.md' --source './src:code:**/*.py'")
-        console.print("  gundog query 'search term' --index .gundog/index")
-        raise typer.Exit(1) from None
-
-
-def load_config_for_query(
-    config: Path | None,
-    index: Path | None,
-) -> GundogConfig:
-    """Load config for query/graph commands (no sources needed)."""
-    # Expand paths
-    if config:
-        config = expand_path(config)
-    if index:
-        index = expand_path(index)
-
-    # If index is provided via CLI, build minimal config
-    if index:
-        return GundogConfig(
-            sources=[],
-            embedding=EmbeddingConfig(),
-            storage=StorageConfig(path=str(index)),
-            graph=GraphConfig(),
-        )
-
-    # Otherwise, load from config file
-    config_path = config or DEFAULT_CONFIG_PATH
-    try:
-        return GundogConfig.load(config_path)
-    except FileNotFoundError:
-        console.print(f"[red]Error:[/red] Config file not found: {config_path}")
-        console.print()
-        console.print("Either create a config file or specify the index location:")
-        console.print("  gundog query 'search term' --index .gundog/index")
+        console.print("Create a config file at .gundog/config.yaml:")
+        console.print("  sources:")
+        console.print('    - path: ./docs')
+        console.print('      glob: "**/*.md"')
+        console.print('    - path: ./src')
+        console.print('      glob: "**/*.py"')
         raise typer.Exit(1) from None
 
 
@@ -153,38 +68,7 @@ def index(
         typer.Option(
             "--config",
             "-c",
-            help="Path to config file",
-        ),
-    ] = None,
-    source: Annotated[
-        list[str] | None,
-        typer.Option(
-            "--source",
-            "-s",
-            help="Source in format 'path:type:glob' - quote globs! (can be repeated)",
-        ),
-    ] = None,
-    exclude: Annotated[
-        list[str] | None,
-        typer.Option(
-            "--exclude",
-            "-e",
-            help="Exclude pattern (quote it!), e.g. '**/test_*' (can be repeated)",
-        ),
-    ] = None,
-    exclusion_template: Annotated[
-        ExclusionTemplate | None,
-        typer.Option(
-            "--exclusion-template",
-            help="Predefined exclusion patterns (python, javascript, typescript, go, rust, java)",
-        ),
-    ] = None,
-    index_path: Annotated[
-        Path | None,
-        typer.Option(
-            "--index",
-            "-i",
-            help="Index storage path",
+            help="Path to config file (default: .gundog/config.yaml)",
         ),
     ] = None,
     rebuild: Annotated[
@@ -196,7 +80,7 @@ def index(
     ] = False,
 ) -> None:
     """Index sources for semantic search."""
-    cfg = load_config_or_build(config, source, index_path, exclude, exclusion_template)
+    cfg = load_config(config)
     indexer = Indexer(cfg)
     summary = indexer.index(rebuild=rebuild)
 

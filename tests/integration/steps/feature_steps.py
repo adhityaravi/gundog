@@ -6,7 +6,7 @@ from pytest_bdd import given, parsers, then, when
 
 from gundog._chunker import parse_chunk_id
 from gundog._query import QueryEngine
-from gundog._templates import ExclusionTemplate
+from gundog._templates import IgnorePreset
 from tests.integration.steps.common import create_config, parse_datatable
 
 # ============ Chunking Steps ============
@@ -100,20 +100,35 @@ def verify_vector_only_search(test_context):
     assert result is not None
 
 
-# ============ Exclusion Steps ============
+# ============ Ignore Steps ============
 
 
+@given(parsers.parse('the ignore preset is "{preset}"'))
+def set_ignore_preset(test_context, preset):
+    """Set the ignore preset."""
+    test_context["ignore_preset"] = IgnorePreset(preset)
+
+
+# Keep old step name for backward compatibility with existing feature files
 @given(parsers.parse('the exclusion template is "{template}"'))
 def set_exclusion_template(test_context, template):
-    """Set the exclusion template."""
-    test_context["exclusion_template"] = ExclusionTemplate(template)
+    """Set the ignore preset (legacy step name)."""
+    test_context["ignore_preset"] = IgnorePreset(template)
 
 
+@given("custom ignore patterns")
+def set_custom_ignores(test_context, datatable):
+    """Set custom ignore patterns."""
+    rows = parse_datatable(datatable)
+    test_context["custom_ignores"] = [row["pattern"] for row in rows]
+
+
+# Keep old step name for backward compatibility
 @given("custom exclude patterns")
 def set_custom_excludes(test_context, datatable):
-    """Set custom exclude patterns."""
+    """Set custom ignore patterns (legacy step name)."""
     rows = parse_datatable(datatable)
-    test_context["custom_excludes"] = [row["pattern"] for row in rows]
+    test_context["custom_ignores"] = [row["pattern"] for row in rows]
 
 
 @given("a source directory with files")

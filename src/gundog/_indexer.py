@@ -12,7 +12,7 @@ from gundog._embedder import Embedder
 from gundog._git import get_git_info
 from gundog._graph import SimilarityGraph
 from gundog._store import create_store
-from gundog._templates import get_exclusion_patterns
+from gundog._templates import get_ignore_patterns
 
 
 class Indexer:
@@ -38,10 +38,39 @@ class Indexer:
         self.graph.load()
         self.bm25.load()
 
-    def _should_exclude(self, path: Path, excludes: list[str]) -> bool:
-        """Check if path matches any exclude pattern."""
+    def _should_ignore(self, path: Path, patterns: list[str]) -> bool:
+        """Check if path matches any ignore pattern."""
         path_str = str(path)
-        return any(fnmatch(path_str, pattern) for pattern in excludes)
+        return any(fnmatch(path_str, pattern) for pattern in patterns)
+
+    def _parse_gitignore(self, gitignore_path: Path) -> list[str]:
+        """Parse .gitignore file and convert to glob patterns."""
+        if not gitignore_path.exists():
+            return []
+
+        patterns: list[str] = []
+        try:
+            for line in gitignore_path.read_text().splitlines():
+                line = line.strip()
+                # Skip empty lines and comments
+                if not line or line.startswith("#"):
+                    continue
+                # Convert gitignore patterns to glob patterns
+                if line.startswith("/"):
+                    # Rooted pattern - relative to gitignore location
+                    patterns.append(f"{gitignore_path.parent}{line}")
+                elif "/" in line and not line.endswith("/"):
+                    # Path pattern
+                    patterns.append(f"**/{line}")
+                else:
+                    # Simple pattern - match anywhere
+                    pattern = line.rstrip("/")
+                    patterns.append(f"**/{pattern}")
+                    patterns.append(f"**/{pattern}/**")
+        except Exception:
+            pass
+
+        return patterns
 
     def _hash_content(self, content: str) -> str:
         """Compute SHA256 hash of content."""
@@ -54,13 +83,21 @@ class Indexer:
             print(f"Warning: Source path does not exist: {source.path}")
             return []
 
-        excludes = list(source.exclude)
-        if source.exclusion_template:
-            excludes.extend(get_exclusion_patterns(source.exclusion_template))
+        # Collect all ignore patterns
+        patterns = list(source.ignore)
+
+        # Add preset patterns
+        if source.ignore_preset:
+            patterns.extend(get_ignore_patterns(source.ignore_preset))
+
+        # Add gitignore patterns if enabled
+        if source.use_gitignore:
+            gitignore_path = source_path / ".gitignore"
+            patterns.extend(self._parse_gitignore(gitignore_path))
 
         files = []
         for file_path in source_path.glob(source.glob):
-            if file_path.is_file() and not self._should_exclude(file_path, excludes):
+            if file_path.is_file() and not self._should_ignore(file_path, patterns):
                 files.append(file_path)
 
         return files

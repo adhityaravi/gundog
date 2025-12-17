@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-from gundog._templates import ExclusionTemplate
+from gundog._templates import IgnorePreset
 
 
 @dataclass
@@ -15,8 +15,9 @@ class SourceConfig:
     path: str
     glob: str = "**/*"
     type: str | None = None  # optional user-defined category for filtering
-    exclude: list[str] = field(default_factory=list)
-    exclusion_template: ExclusionTemplate | None = None  # predefined exclusions
+    ignore: list[str] = field(default_factory=list)
+    ignore_preset: IgnorePreset | None = None  # predefined ignore patterns
+    use_gitignore: bool = True  # auto-read .gitignore if exists
 
 
 @dataclass
@@ -84,12 +85,12 @@ class GundogConfig:
         with open(config_path) as f:
             data = yaml.safe_load(f)
 
-        # Parse sources with exclusion_template support
+        # Parse sources with ignore_preset support
         sources = []
         for s in data.get("sources", []):
-            # Convert exclusion_template string to enum if present
-            if "exclusion_template" in s and s["exclusion_template"] is not None:
-                s["exclusion_template"] = ExclusionTemplate(s["exclusion_template"])
+            # Convert ignore_preset string to enum if present
+            if "ignore_preset" in s and s["ignore_preset"] is not None:
+                s["ignore_preset"] = IgnorePreset(s["ignore_preset"])
             sources.append(SourceConfig(**s))
 
         embedding_data = data.get("embedding", {})

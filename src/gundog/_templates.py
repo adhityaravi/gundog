@@ -1,10 +1,10 @@
-"""Predefined exclusion templates for common languages."""
+"""Predefined ignore presets for common languages."""
 
 from enum import Enum
 
 
-class ExclusionTemplate(str, Enum):
-    """Predefined exclusion patterns for common languages."""
+class IgnorePreset(str, Enum):
+    """Predefined ignore patterns for common languages."""
 
     PYTHON = "python"
     JAVASCRIPT = "javascript"
@@ -14,8 +14,8 @@ class ExclusionTemplate(str, Enum):
     JAVA = "java"
 
 
-EXCLUSION_PATTERNS: dict[ExclusionTemplate, list[str]] = {
-    ExclusionTemplate.PYTHON: [
+IGNORE_PATTERNS: dict[IgnorePreset, list[str]] = {
+    IgnorePreset.PYTHON: [
         "**/__pycache__/**",
         "**/*.pyc",
         "**/.venv/**",
@@ -27,7 +27,7 @@ EXCLUSION_PATTERNS: dict[ExclusionTemplate, list[str]] = {
         "**/_version.py",
         "**/conftest.py",
     ],
-    ExclusionTemplate.JAVASCRIPT: [
+    IgnorePreset.JAVASCRIPT: [
         "**/node_modules/**",
         "**/dist/**",
         "**/build/**",
@@ -36,7 +36,7 @@ EXCLUSION_PATTERNS: dict[ExclusionTemplate, list[str]] = {
         "**/*.min.js",
         "**/package-lock.json",
     ],
-    ExclusionTemplate.TYPESCRIPT: [
+    IgnorePreset.TYPESCRIPT: [
         "**/node_modules/**",
         "**/dist/**",
         "**/build/**",
@@ -45,17 +45,17 @@ EXCLUSION_PATTERNS: dict[ExclusionTemplate, list[str]] = {
         "**/*.d.ts",
         "**/package-lock.json",
     ],
-    ExclusionTemplate.GO: [
+    IgnorePreset.GO: [
         "**/vendor/**",
         "**/*_test.go",
         "**/testdata/**",
         "**/go.sum",
     ],
-    ExclusionTemplate.RUST: [
+    IgnorePreset.RUST: [
         "**/target/**",
         "**/Cargo.lock",
     ],
-    ExclusionTemplate.JAVA: [
+    IgnorePreset.JAVA: [
         "**/target/**",
         "**/build/**",
         "**/.gradle/**",
@@ -64,6 +64,6 @@ EXCLUSION_PATTERNS: dict[ExclusionTemplate, list[str]] = {
 }
 
 
-def get_exclusion_patterns(template: ExclusionTemplate) -> list[str]:
-    """Get exclusion patterns for a template."""
-    return EXCLUSION_PATTERNS.get(template, [])
+def get_ignore_patterns(preset: IgnorePreset) -> list[str]:
+    """Get ignore patterns for a preset."""
+    return IGNORE_PATTERNS.get(preset, [])
