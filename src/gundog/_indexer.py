@@ -3,7 +3,6 @@
 import hashlib
 import subprocess
 from fnmatch import fnmatch
-from functools import lru_cache
 from pathlib import Path
 from typing import Any
 

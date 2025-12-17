@@ -93,8 +93,7 @@ class DaemonConfig:
 
         if not config_path.exists():
             raise FileNotFoundError(
-                f"Daemon config not found: {config_path}\n"
-                f"Run 'gundog daemon start' to create it."
+                f"Daemon config not found: {config_path}\nRun 'gundog daemon start' to create it."
             )
 
         with open(config_path) as f:

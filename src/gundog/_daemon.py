@@ -193,6 +193,7 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
 
     # Serve UI if enabled
     if config.daemon.serve_ui:
+
         @app.get("/", response_class=HTMLResponse)
         async def index() -> str:
             html_file = resources.files("gundog._static").joinpath("index.html")

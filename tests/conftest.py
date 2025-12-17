@@ -14,6 +14,15 @@ from gundog._config import (
     StorageConfig,
 )
 
+# Register step definition modules as pytest plugins (must be at root conftest)
+pytest_plugins = [
+    "tests.integration.steps.common",
+    "tests.integration.steps.indexing_steps",
+    "tests.integration.steps.querying_steps",
+    "tests.integration.steps.storage_steps",
+    "tests.integration.steps.feature_steps",
+]
+
 
 @pytest.fixture
 def temp_dir():

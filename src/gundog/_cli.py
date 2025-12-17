@@ -54,9 +54,9 @@ def load_config(config_path: Path | None) -> GundogConfig:
         console.print()
         console.print("Create a config file at .gundog/config.yaml:")
         console.print("  sources:")
-        console.print('    - path: ./docs')
+        console.print("    - path: ./docs")
         console.print('      glob: "**/*.md"')
-        console.print('    - path: ./src')
+        console.print("    - path: ./src")
         console.print('      glob: "**/*.py"')
         raise typer.Exit(1) from None
 
@@ -349,8 +349,7 @@ def daemon_start(
     if foreground:
         # Run in foreground
         console.print(
-            f"[green]Starting daemon[/green] at "
-            f"http://{config.daemon.host}:{config.daemon.port}"
+            f"[green]Starting daemon[/green] at http://{config.daemon.host}:{config.daemon.port}"
         )
         _write_pid(os.getpid())
         try:

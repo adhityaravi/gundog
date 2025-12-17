@@ -2,15 +2,6 @@
 
 import pytest
 
-# Register step definition modules as pytest plugins
-pytest_plugins = [
-    "tests.integration.steps.common",
-    "tests.integration.steps.indexing_steps",
-    "tests.integration.steps.querying_steps",
-    "tests.integration.steps.storage_steps",
-    "tests.integration.steps.feature_steps",
-]
-
 
 def pytest_configure(config):
     """Register custom markers."""
