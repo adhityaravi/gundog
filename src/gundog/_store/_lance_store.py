@@ -30,7 +30,7 @@ class LanceStore:
         """Ensure database connection is established."""
         if self._db is None:
             try:
-                import lancedb  # type: ignore[import-not-found]
+                import lancedb
             except ImportError as e:
                 raise ImportError(
                     "LanceDB is not installed. Install with: pip install gundog[lance]"
