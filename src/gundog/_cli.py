@@ -2,7 +2,6 @@
 
 import json
 import os
-import webbrowser
 from enum import Enum
 from pathlib import Path
 from typing import Annotated
@@ -25,7 +24,6 @@ from gundog._config import (
 from gundog._indexer import Indexer
 from gundog._query import QueryEngine
 from gundog._templates import ExclusionTemplate
-from gundog._visualize import generate_query_graph
 
 app = typer.Typer(
     name="gundog",
@@ -269,14 +267,6 @@ def query(
             help="Output format",
         ),
     ] = OutputFormat.pretty,
-    show_graph: Annotated[
-        bool,
-        typer.Option(
-            "--graph",
-            "-g",
-            help="Open interactive graph of query expansion",
-        ),
-    ] = False,
 ) -> None:
     """Search for relevant files."""
     cfg = load_config_for_query(config, index_path)
@@ -289,19 +279,6 @@ def query(
         expand_depth=expand_depth,
         type_filter=type_filter,
     )
-
-    # Generate query expansion graph if requested
-    if show_graph:
-        graph_path = Path(cfg.storage.path) / "query_graph.html"
-        generate_query_graph(
-            query=query_text,
-            direct=result.direct,
-            related=result.related,
-            output_path=graph_path,
-        )
-        console.print(f"[dim]Graph saved to {graph_path}[/dim]")
-        webbrowser.open(f"file://{graph_path.absolute()}")
-        return
 
     if output_format == OutputFormat.json:
         console.print_json(json.dumps(engine.to_json(result)))

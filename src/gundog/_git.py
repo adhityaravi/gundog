@@ -49,20 +49,8 @@ class GitInfo:
     def to_web_url(self, start_line: int | None = None, end_line: int | None = None) -> str:
         """Build web URL for viewing this file."""
         url = f"{self.remote_url}/blob/{self.branch}/{self.relative_path}"
-
         if start_line is not None:
-            # GitLab uses #L10-20, GitHub uses #L10-L20
-            if "gitlab" in self.remote_url.lower():
-                if end_line and end_line != start_line:
-                    url += f"#L{start_line}-{end_line}"
-                else:
-                    url += f"#L{start_line}"
-            else:
-                if end_line and end_line != start_line:
-                    url += f"#L{start_line}-L{end_line}"
-                else:
-                    url += f"#L{start_line}"
-
+            url += build_line_anchor(self.remote_url, start_line, end_line)
         return url
 
     @classmethod
@@ -184,6 +172,18 @@ def _get_default_branch(repo_root: Path) -> str | None:
 def get_git_info(file_path: Path) -> GitInfo | None:
     """Get git info for a file."""
     return GitInfo.from_path(file_path)
+
+
+def build_line_anchor(url: str, start_line: int, end_line: int | None = None) -> str:
+    """Build line anchor for GitHub/GitLab URLs."""
+    if "gitlab" in url.lower():
+        if end_line and end_line != start_line:
+            return f"#L{start_line}-{end_line}"
+        return f"#L{start_line}"
+    else:
+        if end_line and end_line != start_line:
+            return f"#L{start_line}-L{end_line}"
+        return f"#L{start_line}"
 
 
 def clear_cache() -> None:

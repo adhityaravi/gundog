@@ -32,7 +32,6 @@ ATM I'm keeping most features as optional till I find out what combinations work
 Optional extras:
 
 ```bash
-pip install gundog[viz]    # for query graph visualization
 pip install gundog[lance]  # for larger codebases (10k+ files)
 pip install gundog[serve]  # for web UI server
 ```
@@ -127,7 +126,6 @@ gundog query "authentication" --top 5        # limit results
 gundog query "caching" --no-expand           # skip graph expansion
 gundog query "auth" --index .gundog/index    # specify index directly
 gundog query "api design" --type docs        # filter by type (if sources have types)
-gundog query "auth flow" --graph             # opens visual graph of results
 ```
 
 The `query` cmd is slow at the moment because it freshly loads the embedding model to embed the query every time. But using the web UI is realtime because it uses a persistent server. Eventually the idea is to make both the cli and the web UI work compulsorily with the same persistent service.

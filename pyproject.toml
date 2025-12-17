@@ -25,7 +25,6 @@ dependencies = [
 
 [project.optional-dependencies]
 lance = ["lancedb>=0.1.0"]
-viz = ["pyvis>=0.3.0"]
 serve = ["fastapi>=0.115.0", "uvicorn>=0.32.0"]
 dev = [
     "pytest>=8.0",

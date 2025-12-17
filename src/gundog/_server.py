@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from gundog._config import GundogConfig
+from gundog._git import build_line_anchor
 from gundog._query import QueryEngine
 
 
@@ -41,11 +42,7 @@ def create_app(config: GundogConfig, title: str = "gundog") -> Any:
         lines = result.get("lines")
         if lines:
             start, end = lines.split("-")
-            # GitLab uses #L10-20, GitHub uses #L10-L20
-            if "gitlab" in git_url.lower():
-                url += f"#L{start}-{end}"
-            else:
-                url += f"#L{start}-L{end}"
+            url += build_line_anchor(git_url, int(start), int(end))
 
         return url
 

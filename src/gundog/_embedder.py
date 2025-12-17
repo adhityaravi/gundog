@@ -1,6 +1,5 @@
 """Text embedding using sentence-transformers."""
 
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -54,24 +53,6 @@ class Embedder:
         """
         embedding = self.model.encode(text, normalize_embeddings=True)
         return np.asarray(embedding)
-
-    def embed_file(self, file_path: Path) -> np.ndarray:
-        """
-        Embed a file's contents with path context.
-
-        The file path is prepended to help the model understand
-        the file's role (e.g., "adr/networking/..." signals networking content).
-
-        Args:
-            file_path: Path to file to embed
-
-        Returns:
-            Normalized embedding vector
-        """
-        content = file_path.read_text(encoding="utf-8")
-        # Include path for context - helps with clustering
-        full_content = f"Path: {file_path}\n\n{content}"
-        return self.embed_text(full_content)
 
     def embed_batch(self, texts: list[str], show_progress: bool = True) -> np.ndarray:
         """
