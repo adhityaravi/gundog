@@ -21,11 +21,13 @@ dependencies = [
     "typer>=0.12.0",
     "rich>=13.0",
     "rank-bm25>=0.2.2",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.32.0",
+    "httpx>=0.27.0",
 ]
 
 [project.optional-dependencies]
 lance = ["lancedb>=0.1.0"]
-serve = ["fastapi>=0.115.0", "uvicorn>=0.32.0"]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=4.0",

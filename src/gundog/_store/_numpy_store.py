@@ -66,6 +66,19 @@ class NumpyStore:
             return None
         return self._vectors[idx], meta
 
+    def get_batch(self, ids: list[str]) -> dict[str, tuple[np.ndarray, dict]]:
+        """Get multiple vectors and metadata by IDs."""
+        if self._vectors is None or not ids:
+            return {}
+
+        result = {}
+        for id in ids:
+            if id in self._id_to_idx:
+                idx = self._id_to_idx[id]
+                meta = {k: v for k, v in self._metadata[id].items() if k != "_idx"}
+                result[id] = (self._vectors[idx], meta)
+        return result
+
     def delete(self, id: str) -> bool:
         """Delete vector by ID."""
         if id not in self._id_to_idx:

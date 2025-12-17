@@ -27,13 +27,10 @@ Gundog builds these connections across repositories/data sources automatically. 
 pip install gundog
 ```
 
-ATM I'm keeping most features as optional till I find out what combinations work the best.
-
 Optional extras:
 
 ```bash
 pip install gundog[lance]  # for larger codebases (10k+ files)
-pip install gundog[serve]  # for web UI server
 ```
 
 ### Or from source
@@ -69,17 +66,24 @@ gundog index
 
 First run downloads the embedding model (~130MB for the default). You can use any [sentence-transformers model](https://sbert.net/docs/sentence_transformer/pretrained_models.html). Subsequent runs are incremental and only re-indexes changed files.
 
-**3. Search:**
+**3. Start the daemon and register your index:**
+
+```bash
+gundog daemon start
+gundog daemon add myproject .
+```
+
+**4. Search:**
 
 ```bash
 gundog query "database connection pooling"
 ```
 
-Returns ranked results with file paths and relevance scores.
+Returns ranked results with file paths and relevance scores. The daemon keeps the model loaded for instant queries (~0.2s).
 
 ## Commands
 
-You can use gundog with a config file OR with CLI flags directly. but config files are recommended:
+You can use gundog with a config file OR with CLI flags directly. Config files are recommended:
 
 ```bash
 # With config file (default: .gundog/config.yaml)
@@ -88,7 +92,6 @@ gundog index -c /path/to/config.yaml
 
 # Without config file
 gundog index --source ./docs:*.md --source ./src:*.py
-gundog query "auth" --index .gundog/index
 ```
 
 ### `gundog index`
@@ -118,31 +121,33 @@ Available templates: `python`, `javascript`, `typescript`, `go`, `rust`, `java`
 
 ### `gundog query`
 
-Finds relevant files for a natural language query.
+Finds relevant files for a natural language query. **Requires the daemon to be running.**
 
 ```bash
 gundog query "error handling strategy"
 gundog query "authentication" --top 5        # limit results
-gundog query "caching" --no-expand           # skip graph expansion
-gundog query "auth" --index .gundog/index    # specify index directly
-gundog query "api design" --type docs        # filter by type (if sources have types)
+gundog query "auth" --index myproject        # use specific registered index
 ```
 
-The `query` cmd is slow at the moment because it freshly loads the embedding model to embed the query every time. But using the web UI is realtime because it uses a persistent server. Eventually the idea is to make both the cli and the web UI work compulsorily with the same persistent service.
+### `gundog daemon`
 
-### `gundog serve`
-
-Starts a web UI for interactive queries with a visual graph.
+Runs a persistent background service for fast queries. The daemon keeps the embedding model loaded in memory, making subsequent queries instant (~0.2s vs ~3s cold start).
 
 ```bash
-gundog serve                              # starts at http://127.0.0.1:8000
-gundog serve --port 3000                  # custom port
-gundog serve --title "My Project"         # custom title
+gundog daemon start                           # start daemon (bootstraps config if needed)
+gundog daemon start --foreground              # run in foreground (for debugging)
+gundog daemon stop                            # stop daemon
+gundog daemon status                          # check if daemon is running
+
+# Index management
+gundog daemon add myproject /path/to/project  # register an index
+gundog daemon remove myproject                # unregister an index
+gundog daemon list                            # list registered indexes
 ```
 
-File links are auto-detected from git repos. Files in a git repo with a remote get clickable links to GitHub/GitLab. Non-git files show the path on hover.
+The `gundog query` command requires the daemon to be running. Daemon settings are stored at `~/.config/gundog/daemon.yaml`.
 
-Requires the serve extra: `pip install gundog[serve]`
+The daemon also serves a web UI at the same address for interactive queries with a visual graph. File links are auto-detected from git repos - files in a git repo with a remote get clickable links to GitHub/GitLab.
 
 ## How It Works
 
@@ -158,7 +163,16 @@ Requires the serve extra: `pip install gundog[serve]`
 
 ## Configuration
 
-Full config options:
+Gundog uses two config files:
+
+| File | Scope | Purpose |
+|------|-------|---------|
+| `.gundog/config.yaml` | Per-project | Index settings (sources, model, storage backend) |
+| `~/.config/gundog/daemon.yaml` | Per-user | Daemon settings (host, port, registered indexes) |
+
+### Project config
+
+Each project has its own `.gundog/config.yaml` that defines what to index and how:
 
 ```yaml
 sources:
@@ -209,6 +223,28 @@ chunking:
 ```
 
 Results are automatically deduplicated by file, showing the best-matching chunk.
+
+### Daemon config
+
+The daemon config at `~/.config/gundog/daemon.yaml` controls the background service:
+
+```yaml
+daemon:
+  host: 127.0.0.1       # bind address
+  port: 7676            # port number
+  serve_ui: true        # serve web UI at root path
+  auth:
+    enabled: false      # require API key
+    api_key: null       # set via GUNDOG_API_KEY env var or here
+  cors:
+    allowed_origins: [] # CORS origins (empty = allow all)
+
+# Registered indexes (managed via `gundog daemon add/remove`)
+indexes:
+  myproject: /path/to/project/.gundog
+
+default_index: myproject  # used when --index not specified
+```
 
 ## Development
 

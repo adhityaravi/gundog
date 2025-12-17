@@ -86,6 +86,25 @@ class LanceStore:
 
         return vector, metadata
 
+    def get_batch(self, ids: list[str]) -> dict[str, tuple[np.ndarray, dict]]:
+        """Get multiple vectors and metadata by IDs in a single query."""
+        self._ensure_db()
+
+        if self._table is None or not ids:
+            return {}
+
+        # Build OR filter for all IDs
+        id_filter = " OR ".join(f"id = '{id}'" for id in ids)
+        results = self._table.search().where(id_filter).limit(len(ids)).to_list()
+
+        result_map = {}
+        for row in results:
+            vector = np.array(row["vector"], dtype=np.float32)
+            metadata = {k[5:]: v for k, v in row.items() if k.startswith("meta_")}
+            result_map[row["id"]] = (vector, metadata)
+
+        return result_map
+
     def delete(self, id: str) -> bool:
         """Delete vector by ID."""
         self._ensure_db()

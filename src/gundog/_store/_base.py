@@ -24,6 +24,10 @@ class VectorStore(Protocol):
         """Get vector and metadata by ID."""
         ...
 
+    def get_batch(self, ids: list[str]) -> dict[str, tuple[np.ndarray, dict]]:
+        """Get multiple vectors and metadata by IDs."""
+        ...
+
     def delete(self, id: str) -> bool:
         """Delete vector by ID. Returns True if existed."""
         ...

@@ -166,3 +166,55 @@ def test_numpy_store_all_vectors(temp_dir: Path):
     assert len(all_vecs) == 3
     for key, vec in vectors.items():
         np.testing.assert_array_almost_equal(all_vecs[key], vec)
+
+
+def test_numpy_store_get_batch(temp_dir: Path):
+    """Test batch retrieval of vectors and metadata."""
+    store = NumpyStore(temp_dir / "index")
+
+    vectors = {}
+    for i in range(5):
+        vec = np.random.rand(384).astype(np.float32)
+        vec = vec / np.linalg.norm(vec)
+        vectors[f"file_{i}.md"] = vec
+        store.upsert(f"file_{i}.md", vec, {"type": "adr", "index": i})
+
+    # Batch get subset
+    result = store.get_batch(["file_0.md", "file_2.md", "file_4.md"])
+
+    assert len(result) == 3
+    assert "file_0.md" in result
+    assert "file_2.md" in result
+    assert "file_4.md" in result
+    assert "file_1.md" not in result
+
+    # Verify vector and metadata
+    vec, meta = result["file_2.md"]
+    np.testing.assert_array_almost_equal(vec, vectors["file_2.md"])
+    assert meta["index"] == 2
+
+
+def test_numpy_store_get_batch_with_missing(temp_dir: Path):
+    """Test batch retrieval skips missing IDs."""
+    store = NumpyStore(temp_dir / "index")
+
+    vec = np.random.rand(384).astype(np.float32)
+    vec = vec / np.linalg.norm(vec)
+    store.upsert("exists.md", vec, {"type": "adr"})
+
+    result = store.get_batch(["exists.md", "missing.md", "also_missing.md"])
+
+    assert len(result) == 1
+    assert "exists.md" in result
+    assert "missing.md" not in result
+
+
+def test_numpy_store_get_batch_empty(temp_dir: Path):
+    """Test batch retrieval with empty list."""
+    store = NumpyStore(temp_dir / "index")
+
+    vec = np.random.rand(384).astype(np.float32)
+    store.upsert("file.md", vec, {"type": "adr"})
+
+    result = store.get_batch([])
+    assert result == {}

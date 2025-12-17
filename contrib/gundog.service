@@ -1,0 +1,31 @@
+# Gundog systemd user service
+#
+# Installation:
+#   1. Copy this file to ~/.config/systemd/user/gundog.service
+#   2. Reload systemd: systemctl --user daemon-reload
+#   3. Enable on login: systemctl --user enable gundog
+#   4. Start now: systemctl --user start gundog
+#
+# Usage:
+#   systemctl --user status gundog    # Check status
+#   systemctl --user restart gundog   # Restart
+#   journalctl --user -u gundog -f    # View logs
+
+[Unit]
+Description=Gundog Semantic Search Daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/gundog daemon start --foreground
+Restart=on-failure
+RestartSec=5
+
+# Environment
+Environment=XDG_CONFIG_HOME=%h/.config
+
+# Optional: Uncomment to set API key
+# Environment=GUNDOG_API_KEY=your-secret-key
+
+[Install]
+WantedBy=default.target

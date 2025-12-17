@@ -161,8 +161,9 @@ class QueryEngine:
         direct_ids = set(seed_ids)
         direct_parent_files = {parse_chunk_id(sid)[0] for sid in seed_ids}
         seen_parent_files: set[str] = set()
-        related: list[dict[str, Any]] = []
 
+        # First pass: collect node_ids that need metadata lookup
+        nodes_to_fetch: list[tuple[str, str, int | None, dict[str, Any]]] = []
         for node_id, info in expanded.items():
             if node_id in direct_ids:
                 continue
@@ -176,6 +177,15 @@ class QueryEngine:
             if type_filter and info["type"] != type_filter:
                 continue
 
+            nodes_to_fetch.append((node_id, parent_file, chunk_idx, info))
+
+        # Batch fetch metadata for all nodes at once
+        node_ids_to_fetch = [n[0] for n in nodes_to_fetch]
+        metadata_batch = self.store.get_batch(node_ids_to_fetch)
+
+        # Build results with fetched metadata
+        related: list[dict[str, Any]] = []
+        for node_id, parent_file, chunk_idx, info in nodes_to_fetch:
             via_parent, _ = parse_chunk_id(info["via"])
             entry: dict[str, Any] = {
                 "path": parent_file,
@@ -187,10 +197,9 @@ class QueryEngine:
             if chunk_idx is not None:
                 entry["chunk"] = chunk_idx
 
-            # Add git metadata from store
-            store_result = self.store.get(node_id)
-            if store_result:
-                _, metadata = store_result
+            # Add git metadata from batch lookup
+            if node_id in metadata_batch:
+                _, metadata = metadata_batch[node_id]
                 if metadata.get("git_url"):
                     entry["git_url"] = metadata["git_url"]
                     entry["git_branch"] = metadata["git_branch"]

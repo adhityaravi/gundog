@@ -59,6 +59,19 @@ input[type="search"] {
   outline: none;
 }
 input[type="search"]:focus { border-color: var(--accent); }
+select {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  outline: none;
+  cursor: pointer;
+  min-width: 120px;
+}
+select:focus { border-color: var(--accent); }
+select:hover { border-color: var(--text-secondary); }
 button {
   padding: 0.5rem 1rem;
   font-size: 0.95rem;
@@ -153,6 +166,7 @@ main {
 <header>
   <h1>{{TITLE}}</h1>
   <form class="search-form" onsubmit="search(event)">
+    <select id="index-select" title="Select index"></select>
     <input type="search" id="q" placeholder="Ask about architecture..." autofocus>
     <button type="submit" id="btn">Search</button>
   </form>
@@ -167,6 +181,36 @@ main {
 <script>
 let network = null;
 
+// Load available indexes on page load
+async function loadIndexes() {
+  const select = document.getElementById("index-select");
+  try {
+    const res = await fetch("/api/indexes");
+    const data = await res.json();
+    select.innerHTML = "";
+
+    const indexes = Object.keys(data.indexes || {});
+    if (indexes.length === 0) {
+      select.innerHTML = '<option value="">No indexes</option>';
+      select.style.display = "none";
+      return;
+    }
+
+    indexes.forEach(name => {
+      const opt = document.createElement("option");
+      opt.value = name;
+      opt.textContent = name;
+      if (name === data.default) opt.selected = true;
+      select.appendChild(opt);
+    });
+
+    // Hide dropdown if only one index
+    select.style.display = indexes.length > 1 ? "block" : "none";
+  } catch (err) {
+    select.style.display = "none";
+  }
+}
+
 async function search(e) {
   e.preventDefault();
   const q = document.getElementById("q").value.trim();
@@ -176,7 +220,11 @@ async function search(e) {
   btn.disabled = true;
 
   try {
-    const res = await fetch("/api/query?q=" + encodeURIComponent(q));
+    const index = document.getElementById("index-select").value;
+    let url = "/api/query?q=" + encodeURIComponent(q);
+    if (index) url += "&index=" + encodeURIComponent(index);
+
+    const res = await fetch(url);
     const data = await res.json();
     render(data);
   } catch (err) {
@@ -185,6 +233,9 @@ async function search(e) {
     btn.disabled = false;
   }
 }
+
+// Load indexes on page load
+loadIndexes();
 
 function render(data) {
   renderSidebar(data);

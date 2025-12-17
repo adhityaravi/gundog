@@ -1,0 +1,40 @@
+services:
+  gundog:
+    build: .
+    ports:
+      - "7676:7676"
+    volumes:
+      # Mount your config file
+      - ./config.yaml:/root/.config/gundog/config.yaml:ro
+      # Mount your indexed projects (add as needed)
+      # - /path/to/project1/.gundog:/data/indexes/project1:ro
+      # - /path/to/project2/.gundog:/data/indexes/project2:ro
+    environment:
+      # Optional: Set API key for authentication
+      # - GUNDOG_API_KEY=your-secret-key
+      - XDG_CONFIG_HOME=/root/.config
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7676/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# Example config.yaml to create alongside this file:
+#
+# daemon:
+#   host: 0.0.0.0
+#   port: 7676
+#   serve_ui: true
+#   auth:
+#     enabled: false
+#     api_key: null
+#   cors:
+#     allowed_origins: []
+#
+# indexes:
+#   project1: /data/indexes/project1
+#   project2: /data/indexes/project2
+#
+# default_index: project1
