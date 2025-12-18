@@ -74,7 +74,7 @@ def _disable_hf_xet() -> None:
 
 def _configure_hf_no_verify() -> None:
     """Configure huggingface_hub to skip SSL verification."""
-    # hugginface is kinda heavy, so lazy load
+    # huggingface is kinda heavy, so lazy load
     from huggingface_hub import configure_http_backend
 
     def no_verify_backend_factory() -> requests.Session:
@@ -88,7 +88,7 @@ def _configure_hf_no_verify() -> None:
 
 def _configure_hf_ca_bundle(ca_path: str) -> None:
     """Configure huggingface_hub to use a custom CA bundle."""
-    # hugginface is kinda heavy, so lazy load
+    # huggingface is kinda heavy, so lazy load
     from huggingface_hub import configure_http_backend
 
     def ca_bundle_backend_factory() -> requests.Session:
