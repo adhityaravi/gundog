@@ -3,10 +3,6 @@ name: Quality Checks
 on:
   workflow_call:
 
-env:
-  # Use CPU-only PyTorch to avoid slow NVIDIA CUDA package downloads
-  UV_EXTRA_INDEX_URL: https://download.pytorch.org/whl/cpu
-
 jobs:
   lint:
     name: Lint
