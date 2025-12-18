@@ -30,7 +30,7 @@ Gundog uses [ONNX Runtime](https://onnxruntime.ai/) and [HNSW](https://github.co
 | Query latency | ~15ms (after model warmup) |
 | First query | ~200-300ms (model loading) |
 | Accuracy | 96-100% |
-| Index time | ~1 min per 100 files |
+| Index time | ~1 min per 100 files (depends on no. of threads) |
 
 *Based on personal testing with 60-120 files and 50 queries. Not extensively validated at scale. Your mileage may vary. See [`benchmark/BENCHMARK.md`](benchmark/BENCHMARK.md) for details.*
 
