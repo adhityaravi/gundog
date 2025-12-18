@@ -2,9 +2,10 @@
 
 import os
 import sys
-import urllib3
-import requests
 from pathlib import Path
+
+import requests
+import urllib3
 
 # Environment variable names
 GUNDOG_CA_BUNDLE = "GUNDOG_CA_BUNDLE"

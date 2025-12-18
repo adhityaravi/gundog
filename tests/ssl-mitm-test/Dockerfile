@@ -10,11 +10,9 @@ WORKDIR /app
 # Install gundog from local source
 COPY pyproject.toml uv.lock README.md ./
 COPY src/ ./src/
+COPY tests/ ./tests/
 
-# Install uv and the package
-RUN pip install uv && uv pip install --system -e ".[onnx]"
+# Install uv and the package with dev dependencies
+RUN pip install uv && uv pip install --system -e ".[onnx,dev]"
 
-# Test script
-COPY tests/ssl-mitm-test/test_ssl.py ./test_ssl.py
-
-CMD ["python", "test_ssl.py"]
+CMD ["pytest", "tests/integration/tests/test_ssl_mitm.py", "-v", "--tb=short"]
