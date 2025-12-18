@@ -209,6 +209,13 @@ embedding:
   threads: 4  # use 4 CPU threads
 ```
 
+**Note on GPU support**: Gundog uses ONNX Runtime for inference by default, which runs on CPU. The default installation includes CPU-only PyTorch (~176MB) rather than CUDA PyTorch (~3GB+). This is intentional - ONNX provides fast CPU inference without GPU dependencies.
+
+If you want GPU acceleration (only useful with `enable_onnx: false`):
+```bash
+uv pip install torch --index-url https://download.pytorch.org/whl/cu121 --reinstall
+```
+
 ### Storage options
 
 | Option | Default | Description |
