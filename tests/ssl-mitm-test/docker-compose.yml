@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  # MITM Proxy - simulates Zscaler SSL interception
+  proxy:
+    image: mitmproxy/mitmproxy:latest
+    command: mitmdump --set block_global=false
+    ports:
+      - "8080:8080"
+    networks:
+      - mitm-net
+
+  # Test container that runs gundog through the proxy
+  gundog-test:
+    build:
+      context: ../..
+      dockerfile: tests/ssl-mitm-test/Dockerfile
+    environment:
+      - HTTPS_PROXY=http://proxy:8080
+      - HTTP_PROXY=http://proxy:8080
+    depends_on:
+      - proxy
+    networks:
+      - mitm-net
+
+networks:
+  mitm-net:
+    driver: bridge
