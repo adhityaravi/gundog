@@ -163,6 +163,7 @@ embedding:
   # Any sentence-transformers model works: https://sbert.net/docs/sentence_transformer/pretrained_models.html
   model: BAAI/bge-small-en-v1.5   # default (~130MB), good balance of speed/quality
   enable_onnx: true               # default. forces ONNX conversion
+  threads: 2                      # CPU threads for embedding (increase for faster indexing)
 
 storage:
   use_hnsw: true                  # default - O(log n) search, scales to millions. Uses numpy if false.
@@ -197,8 +198,16 @@ The `type` field is optional. If you want to filter results by category, assign 
 |--------|---------|-------------|
 | `model` | `BAAI/bge-small-en-v1.5` | Any sentence-transformers model |
 | `enable_onnx` | `true` | Use [ONNX Runtime](https://onnxruntime.ai/) |
+| `threads` | `2` | CPU threads for embedding operations |
 
 ONNX models are automatically and forcefully converted on first use and cached at `~/.cache/gundog/onnx/`. This cache is shared across all your projects that use the same model.
+
+The `threads` setting controls CPU parallelism for embedding. The default of 2 is conservative to prevent system slowdown during indexing. Increase for faster indexing on multi-core machines, decrease if your system becomes unresponsive:
+
+```yaml
+embedding:
+  threads: 4  # use 4 CPU threads
+```
 
 ### Storage options
 
@@ -262,6 +271,28 @@ indexes:
   myproject: /path/to/project/.gundog
 
 default_index: myproject  # used when --index not specified
+```
+
+## Network & SSL
+
+Gundog downloads embedding models from HuggingFace on first run. If you're behind a corporate proxy or firewall that intercepts SSL traffic (e.g., Zscaler), you may see certificate errors.
+
+### Quick fix (disable SSL verification)
+
+```bash
+gundog index --no-verify-ssl
+```
+
+Or set permanently:
+```bash
+export GUNDOG_NO_VERIFY_SSL=1
+```
+
+### Proper fix (use your network's CA certificate)
+
+```bash
+export GUNDOG_CA_BUNDLE=/path/to/your-network-ca.pem
+gundog index
 ```
 
 ## Development
