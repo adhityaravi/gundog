@@ -1,5 +1,8 @@
 """Daemon server for gundog - persistent query service."""
 
+import logging
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from importlib import resources
 from pathlib import Path
 
@@ -13,6 +16,8 @@ from gundog._config import EmbeddingConfig, GundogConfig, StorageConfig
 from gundog._daemon_config import DaemonConfig
 from gundog._git import build_line_anchor
 from gundog._query import QueryEngine
+
+logger = logging.getLogger("gundog.daemon")
 
 
 class IndexManager:
@@ -30,6 +35,39 @@ class IndexManager:
     @property
     def engine(self) -> QueryEngine | None:
         return self._engine
+
+    def reload_config(self, warmup: bool = True) -> DaemonConfig:
+        """Reload config from disk and optionally warmup default index."""
+        self.config = DaemonConfig.load()
+        # Reset active index if it no longer exists
+        if self._active_index and self._active_index not in self.config.indexes:
+            self._active_index = None
+            self._engine = None
+
+        if warmup:
+            self.warmup()
+
+        return self.config
+
+    def warmup(self) -> bool:
+        """Pre-load default index and run a dummy query to initialize embedding model.
+
+        Returns True if warmup succeeded, False otherwise.
+        """
+        if not self.config.default_index:
+            logger.info("No default index configured, skipping warmup")
+            return False
+
+        try:
+            logger.info(f"Warming up: loading index '{self.config.default_index}'...")
+            engine = self.ensure_loaded()
+            # Run a dummy query to initialize the embedding model
+            engine.query("warmup", top_k=1)
+            logger.info("Warmup complete - ready for queries")
+            return True
+        except Exception as e:
+            logger.warning(f"Warmup failed (non-fatal): {e}")
+            return False
 
     def load_index(self, name: str) -> None:
         """Load an index by name, replacing current if different."""
@@ -81,7 +119,16 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
     if config is None:
         config = DaemonConfig.load()
 
-    app = FastAPI(title="gundog daemon", docs_url=None, redoc_url=None)
+    # Index manager (created early for lifespan access)
+    manager = IndexManager(config)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+        """Handle startup/shutdown events."""
+        manager.warmup()
+        yield
+
+    app = FastAPI(title="gundog daemon", docs_url=None, redoc_url=None, lifespan=lifespan)
 
     # CORS
     origins = config.daemon.cors.allowed_origins or ["*"]
@@ -100,9 +147,6 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
             return
         if api_key != config.daemon.auth.api_key:
             raise HTTPException(status_code=401, detail="Invalid API key")
-
-    # Index manager
-    manager = IndexManager(config)
 
     def build_file_url(result: dict) -> str:
         """Build URL from per-file git metadata."""
@@ -127,15 +171,15 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
         return {
             "status": "ok",
             "active_index": manager.active_index,
-            "available_indexes": list(config.indexes.keys()),
+            "available_indexes": list(manager.config.indexes.keys()),
         }
 
     @app.get("/api/indexes")
     async def list_indexes(_: None = Depends(verify_api_key)) -> dict:
         return {
-            "indexes": config.indexes,
+            "indexes": manager.config.indexes,
             "active": manager.active_index,
-            "default": config.default_index,
+            "default": manager.config.default_index,
         }
 
     @app.post("/api/indexes/active")
@@ -143,11 +187,22 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
         name: str = Query(...),
         _: None = Depends(verify_api_key),
     ) -> dict:
-        if name not in config.indexes:
+        if name not in manager.config.indexes:
             raise HTTPException(status_code=404, detail=f"Unknown index: {name}")
 
         manager.load_index(name)
         return {"active": manager.active_index}
+
+    @app.post("/api/reload")
+    async def reload_config_api(_: None = Depends(verify_api_key)) -> dict:
+        """Reload daemon config from disk and warmup default index."""
+        new_config = manager.reload_config(warmup=True)
+        return {
+            "status": "reloaded",
+            "indexes": list(new_config.indexes.keys()),
+            "default": new_config.default_index,
+            "active": manager.active_index,
+        }
 
     @app.get("/api/query")
     async def query_api(
@@ -173,7 +228,7 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
                     "type": d["type"],
                     "score": d["score"],
                     "lines": d.get("lines"),
-                    "url": build_file_url(d),
+                    "url": d.get("url", ""),  # URL already built by query engine
                 }
                 for d in result.direct
             ],
@@ -200,19 +255,6 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
             html = html_file.read_text()
             html = html.replace("{{TITLE}}", "gundog")
             return html
-
-    # Warmup on startup - pre-load default index and embedding model
-    @app.on_event("startup")
-    async def warmup() -> None:
-        if config.default_index:
-            try:
-                print(f"Warming up: loading index '{config.default_index}'...")
-                engine = manager.ensure_loaded()
-                # Run a dummy query to initialize the embedding model
-                engine.query("warmup", top_k=1)
-                print("Warmup complete - ready for queries")
-            except Exception as e:
-                print(f"Warmup failed (non-fatal): {e}")
 
     return app
 

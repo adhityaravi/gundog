@@ -1,10 +1,11 @@
 """BM25 keyword search index for hybrid retrieval."""
 
 import pickle
-import re
 from pathlib import Path
 
 from rank_bm25 import BM25Okapi
+
+from gundog._utils import tokenize
 
 
 class BM25Index:
@@ -21,12 +22,6 @@ class BM25Index:
         self._doc_ids: list[str] = []
         self._corpus: list[list[str]] = []
 
-    def _tokenize(self, text: str) -> list[str]:
-        """Simple tokenization: lowercase, split on non-alphanumeric."""
-        text = text.lower()
-        tokens = re.split(r"[^a-z0-9_]+", text)
-        return [t for t in tokens if len(t) > 1]
-
     def build(self, documents: dict[str, str]) -> None:
         """
         Build BM25 index from documents.
@@ -41,7 +36,7 @@ class BM25Index:
             return
 
         self._doc_ids = list(documents.keys())
-        self._corpus = [self._tokenize(doc) for doc in documents.values()]
+        self._corpus = [tokenize(doc) for doc in documents.values()]
         self._bm25 = BM25Okapi(self._corpus)
 
     def search(self, query: str, top_k: int = 10) -> list[tuple[str, float]]:
@@ -58,7 +53,7 @@ class BM25Index:
         if self._bm25 is None or not self._doc_ids:
             return []
 
-        tokens = self._tokenize(query)
+        tokens = tokenize(query)
         if not tokens:
             return []
 

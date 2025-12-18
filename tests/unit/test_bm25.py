@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from gundog._bm25 import BM25Index
+from gundog._utils import tokenize
 
 
 def test_bm25_build_empty():
@@ -64,14 +65,13 @@ def test_bm25_search_on_empty_index():
 
 def test_bm25_tokenize():
     """Test tokenization."""
-    index = BM25Index()
-    tokens = index._tokenize("Hello, World! Python_code 123")
+    tokens = tokenize("Hello, World! Python_code 123")
     assert "hello" in tokens
     assert "world" in tokens
     assert "python_code" in tokens
     assert "123" in tokens
     # Single character tokens should be filtered
-    assert "a" not in index._tokenize("a b c")
+    assert "a" not in tokenize("a b c")
 
 
 def test_bm25_save_and_load(temp_dir: Path):

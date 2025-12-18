@@ -32,7 +32,7 @@ def test_embedding_config_defaults():
 def test_storage_config_defaults():
     """Test StorageConfig has expected defaults."""
     config = StorageConfig()
-    assert config.backend == "numpy"
+    assert config.use_hnsw is True
     assert config.path == ".gundog/index"
 
 
@@ -62,7 +62,7 @@ def test_gundog_config_load(temp_dir: Path):
             {"path": "./src", "type": "code", "glob": "**/*.py", "ignore": ["**/__pycache__/**"]},
         ],
         "embedding": {"model": "BAAI/bge-base-en-v1.5"},
-        "storage": {"backend": "numpy", "path": ".gundog/index"},
+        "storage": {"use_hnsw": False, "path": ".gundog/index"},
         "graph": {
             "similarity_threshold": 0.70,
             "expand_threshold": 0.55,
@@ -81,7 +81,7 @@ def test_gundog_config_load(temp_dir: Path):
     assert config.sources[1].ignore == ["**/__pycache__/**"]
 
     assert config.embedding.model == "BAAI/bge-base-en-v1.5"
-    assert config.storage.backend == "numpy"
+    assert config.storage.use_hnsw is False
     assert config.graph.similarity_threshold == 0.70
     assert config.graph.max_expand_depth == 2
 
@@ -108,5 +108,5 @@ def test_gundog_config_load_minimal(temp_dir: Path):
     assert len(config.sources) == 1
     # Should use defaults for other fields
     assert config.embedding.model == "BAAI/bge-small-en-v1.5"
-    assert config.storage.backend == "numpy"
+    assert config.storage.use_hnsw is True
     assert config.graph.similarity_threshold == 0.65

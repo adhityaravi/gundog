@@ -17,20 +17,27 @@ Point it at your docs or code or both. It embeds everything into vectors, builds
 
 ## Why?
 
-I wanted a clean map of all related data chunks from wide spread data sources based on a natural language query. `SeaGOAT` provides rather a ranked but flat and accurate pointer to specific data chunks from a single git repository. Basically, I wanted a [Obsidian graph view](https://help.obsidian.md/plugins/graph) of my docs controlled based on a natural language query without having to go through the pain of using.. well.. Obsidian.
+I wanted a clean map of all related data chunks from wide spread data sources based on a natural language query. [`SeaGOAT`](https://github.com/kantord/SeaGOAT) provides rather a ranked but flat and accurate pointer to specific data chunks from a single git repository. Basically, I wanted a [Obsidian graph view](https://help.obsidian.md/plugins/graph) of my docs controlled based on a natural language query without having to go through the pain of using.. well.. Obsidian.
 
 Gundog builds these connections across repositories/data sources automatically. Vector search finds semantically related content, BM25 catches exact keyword matches, and graph expansion surfaces files you didn't know to look for.
+
+## Performance
+
+Gundog uses [ONNX Runtime](https://onnxruntime.ai/) and [HNSW](https://github.com/nmslib/hnswlib) indexing by default for fast queries:
+
+| Metric | Value |
+|--------|-------|
+| Query latency | ~15ms (after model warmup) |
+| First query | ~200-300ms (model loading) |
+| Accuracy | 96-100% |
+| Index time | ~1 min per 100 files |
+
+*Based on personal testing with 60-120 files and 50 queries. Not extensively validated at scale. Your mileage may vary. See [`benchmark/BENCHMARK.md`](benchmark/BENCHMARK.md) for details.*
 
 ## Install
 
 ```bash
 pip install gundog
-```
-
-Optional extras:
-
-```bash
-pip install gundog[lance]  # for larger codebases (10k+ files)
 ```
 
 ### Or from source
@@ -44,42 +51,31 @@ uv run gundog --help
 
 ## Quick Start
 
-**1. Create a config file** (default: `.gundog/config.yaml`):
-
-```yaml
-sources:
-  - path: ./docs
-    glob: "**/*.md"
-  - path: ./src
-    glob: "**/*.py"
-
-storage:
-  backend: numpy
-  path: .gundog/index
-```
-
-**2. Index your stuff:**
+**1. Index your stuff:**
 
 ```bash
 gundog index
 ```
 
-First run downloads the embedding model (~130MB for the default). You can use any [sentence-transformers model](https://sbert.net/docs/sentence_transformer/pretrained_models.html). Subsequent runs are incremental and only re-indexes changed files.
+First run downloads the embedding model (~130MB) and converts it to ONNX format (cached at `~/.cache/gundog/onnx/` for reuse across projects using the same model). Subsequent runs are incremental and only re-index changed files.
 
-**3. Start the daemon and register your index:**
+**2. Start the daemon and register your index:**
 
 ```bash
 gundog daemon start
 gundog daemon add myproject .
 ```
 
-**4. Search:**
+**3. Search:**
 
 ```bash
 gundog query "database connection pooling"
+
+# stop the daemon if you will
+gundog daemon stop
 ```
 
-Returns ranked results with file paths and relevance scores. The daemon keeps the model loaded for instant queries (~0.2s).
+Returns ranked results with file paths and relevance scores. The daemon keeps the model loaded for instant queries (~15ms).
 
 ## Commands
 
@@ -93,19 +89,9 @@ gundog index -c /path/to.yaml   # custom config file
 gundog index --rebuild          # fresh index from scratch
 ```
 
-### `gundog query`
-
-Finds relevant files for a natural language query. **Requires the daemon to be running.**
-
-```bash
-gundog query "error handling strategy"
-gundog query "authentication" --top 5        # limit results
-gundog query "auth" --index myproject        # use specific registered index
-```
-
 ### `gundog daemon`
 
-Runs a persistent background service for fast queries. The daemon keeps the embedding model loaded in memory, making subsequent queries instant (~0.2s vs ~3s cold start).
+Runs a persistent background service for fast queries. The daemon keeps the embedding model loaded in memory, making subsequent queries instant (~15ms vs ~300ms cold start).
 
 ```bash
 gundog daemon start                           # start daemon (bootstraps config if needed)
@@ -119,9 +105,19 @@ gundog daemon remove myproject                # unregister an index
 gundog daemon list                            # list registered indexes
 ```
 
-The `gundog query` command requires the daemon to be running. Daemon settings are stored at `~/.config/gundog/daemon.yaml`.
-
 The daemon also serves a web UI at the same address for interactive queries with a visual graph. File links are auto-detected from git repos - files in a git repo with a remote get clickable links to GitHub/GitLab.
+
+### `gundog query`
+
+Finds relevant files for a natural language query. **Requires the daemon to be running.**
+
+```bash
+gundog query "error handling strategy"
+gundog query "authentication" --top 5        # limit results
+gundog query "auth" --index myproject        # use specific registered index
+```
+
+The `gundog query` command requires the daemon to be running. Daemon settings are stored at `~/.config/gundog/daemon.yaml`.
 
 ## How It Works
 
@@ -129,11 +125,13 @@ The daemon also serves a web UI at the same address for interactive queries with
 
 2. **Hybrid Search**: Combines semantic (vector) search with keyword ([BM25](https://en.wikipedia.org/wiki/Okapi_BM25)) search using Reciprocal Rank Fusion. Queries like "UserAuthService" find exact matches even when embeddings might miss them.
 
-3. **Storage**: Vectors stored locally via numpy+JSON (default) or [LanceDB](https://lancedb.com/) for scale. No external services.
+3. **Storage**: Vectors stored locally using a vector DB: plain numpy; or HNSW. No external services.
 
-4. **Graph**: Documents above a similarity threshold get connected, enabling traversal from direct matches to related files.
+4. **Two-Stage Ranking**: Coarse retrieval via vector+BM25 fusion, then fine-grained ranking using per-line TF-IDF scores to pinpoint the best matching line within each chunk.
 
-5. **Query**: Your query gets embedded, compared against stored vectors, fused with keyword results, and ranked. Scores are rescaled so 0% = baseline, 100% = perfect match. Irrelevant queries return nothing.
+5. **Graph**: Documents above a similarity threshold get connected, enabling traversal from direct matches to related files.
+
+6. **Query**: Your query gets embedded, compared against stored vectors, fused with keyword results, and ranked. Scores are rescaled so 0% = baseline, 100% = perfect match. Irrelevant queries return nothing.
 
 ## Configuration
 
@@ -141,8 +139,9 @@ Gundog uses two config files:
 
 | File | Scope | Purpose |
 |------|-------|---------|
-| `.gundog/config.yaml` | Per-project | Index settings (sources, model, storage backend) |
+| `.gundog/config.yaml` | Per-project | Index settings (sources, model, storage) |
 | `~/.config/gundog/daemon.yaml` | Per-user | Daemon settings (host, port, registered indexes) |
+
 
 ### Project config
 
@@ -162,10 +161,11 @@ sources:
 
 embedding:
   # Any sentence-transformers model works: https://sbert.net/docs/sentence_transformer/pretrained_models.html
-  model: BAAI/bge-small-en-v1.5  # default (~130MB), good balance of speed/quality
+  model: BAAI/bge-small-en-v1.5   # default (~130MB), good balance of speed/quality
+  enable_onnx: true               # default. forces ONNX conversion
 
 storage:
-  backend: numpy      # or "lancedb" for larger corpora
+  use_hnsw: true                  # default - O(log n) search, scales to millions. Uses numpy if false.
   path: .gundog/index
 
 graph:
@@ -184,12 +184,29 @@ recency:
   half_life_days: 30  # days until recency boost decays to 50%
 
 chunking:
-  enabled: false      # split files into chunks (opt-in)
+  enabled: true       # default - split files into chunks for better precision
   max_tokens: 512     # tokens per chunk
   overlap_tokens: 50  # overlap between chunks
 ```
 
 The `type` field is optional. If you want to filter results by category, assign types to your sources. Any string works.
+
+### Embedding options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `model` | `BAAI/bge-small-en-v1.5` | Any sentence-transformers model |
+| `enable_onnx` | `true` | Use [ONNX Runtime](https://onnxruntime.ai/) |
+
+ONNX models are automatically and forcefully converted on first use and cached at `~/.cache/gundog/onnx/`. This cache is shared across all your projects that use the same model.
+
+### Storage options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `use_hnsw` | `true` | Use [HNSW](https://github.com/nmslib/hnswlib) index for O(log n) search |
+| `path` | `.gundog/index` | Where to store the index |
+
 
 ### Ignore patterns
 
@@ -201,7 +218,7 @@ Control which files are excluded from indexing:
 
 ### Chunking
 
-For large files, enable chunking to get better search results. Instead of embedding whole files (which dilutes signal), chunking splits files into overlapping segments:
+Enabled by default for better search precision. Instead of embedding whole files (which dilutes signal), chunking splits files into overlapping segments:
 
 ```yaml
 chunking:
@@ -210,7 +227,7 @@ chunking:
   overlap_tokens: 50
 ```
 
-Results are automatically deduplicated by file, showing the best-matching chunk.
+Results are automatically deduplicated by file, showing the best-matching chunk with line numbers.
 
 ### Recency boost
 

@@ -25,13 +25,15 @@ class EmbeddingConfig:
     """Configuration for the embedding model."""
 
     model: str = "BAAI/bge-small-en-v1.5"
+    enable_onnx: bool = True  # ONNX is faster and has better noise rejection
+    threads: int = 2  # CPU threads for embedding (prevents system overload)
 
 
 @dataclass
 class StorageConfig:
     """Configuration for vector storage."""
 
-    backend: str = "numpy"  # "numpy" | "lancedb"
+    use_hnsw: bool = True  # HNSW scales better than numpy for large indexes
     path: str = ".gundog/index"
 
 
@@ -84,6 +86,140 @@ class GundogConfig:
     recency: RecencyConfig = field(default_factory=RecencyConfig)
 
     @classmethod
+    def bootstrap(cls, config_path: Path | None = None) -> Path:
+        """
+        Auto-detect sources and create a starter config file.
+
+        Scans the current directory for common file types and creates
+        appropriate source configurations.
+        """
+        if config_path is None:
+            config_path = Path(".gundog/config.yaml")
+
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # File type detection patterns
+        type_patterns: dict[str, dict[str, str | None]] = {
+            "py": {"glob": "**/*.py", "type": "code", "preset": "python"},
+            "md": {"glob": "**/*.md", "type": "docs", "preset": None},
+            "ts": {"glob": "**/*.ts", "type": "code", "preset": "typescript"},
+            "tsx": {"glob": "**/*.tsx", "type": "code", "preset": "typescript"},
+            "js": {"glob": "**/*.js", "type": "code", "preset": "javascript"},
+            "jsx": {"glob": "**/*.jsx", "type": "code", "preset": "javascript"},
+            "go": {"glob": "**/*.go", "type": "code", "preset": "go"},
+            "rs": {"glob": "**/*.rs", "type": "code", "preset": "rust"},
+            "java": {"glob": "**/*.java", "type": "code", "preset": "java"},
+        }
+
+        # Scan current directory for file types
+        cwd = Path.cwd()
+        found_types: set[str] = set()
+
+        for ext in type_patterns:
+            if list(cwd.glob(f"**/*.{ext}"))[:1]:  # Check if any files exist
+                found_types.add(ext)
+
+        # Build sources config
+        sources: list[dict[str, str | None]] = []
+
+        # Group by preset to avoid duplicate sources
+        if found_types:
+            # Combine ts/tsx and js/jsx
+            if "ts" in found_types or "tsx" in found_types:
+                sources.append(
+                    {
+                        "path": ".",
+                        "glob": "**/*.{ts,tsx}",
+                        "type": "code",
+                        "ignore_preset": "typescript",
+                    }
+                )
+                found_types.discard("ts")
+                found_types.discard("tsx")
+
+            if "js" in found_types or "jsx" in found_types:
+                sources.append(
+                    {
+                        "path": ".",
+                        "glob": "**/*.{js,jsx}",
+                        "type": "code",
+                        "ignore_preset": "javascript",
+                    }
+                )
+                found_types.discard("js")
+                found_types.discard("jsx")
+
+            # Add remaining types
+            for ext in found_types:
+                info = type_patterns[ext]
+                source: dict[str, str | None] = {
+                    "path": ".",
+                    "glob": info["glob"],
+                    "type": info["type"],
+                }
+                if info["preset"]:
+                    source["ignore_preset"] = info["preset"]
+                sources.append(source)
+        else:
+            # Fallback: index all text files
+            sources.append(
+                {
+                    "path": ".",
+                    "glob": "**/*",
+                    "type": None,
+                }
+            )
+
+        # Common patterns to always ignore (use **/ prefix for nested directories)
+        common_ignores = [
+            "**/.git/**",
+            "**/.tox/**",
+            "**/.cache/**",
+            "**/*.egg-info/**",
+            "**/.eggs/**",
+            "**/.DS_Store",
+            "**/site-packages/**",
+            "**/dist/**",
+            "**/build/**",
+        ]
+
+        # Build config YAML
+        config_content = """# Gundog configuration - auto-generated
+# Edit sources to customize what gets indexed
+
+sources:
+"""
+        for src in sources:
+            config_content += f'  - path: "{src["path"]}"\n'
+            config_content += f'    glob: "{src["glob"]}"\n'
+            if src.get("type"):
+                config_content += f"    type: {src['type']}\n"
+            if src.get("ignore_preset"):
+                config_content += f"    ignore_preset: {src['ignore_preset']}\n"
+            config_content += "    use_gitignore: true\n"
+            config_content += "    ignore:\n"
+            for pattern in common_ignores:
+                config_content += f'      - "{pattern}"\n'
+            config_content += "\n"
+
+        config_content += """embedding:
+  model: BAAI/bge-small-en-v1.5
+  enable_onnx: true
+  threads: 2  # CPU threads (increase for faster indexing, decrease if system slows)
+
+storage:
+  use_hnsw: true
+  path: .gundog/index
+
+chunking:
+  enabled: true
+  max_tokens: 512
+  overlap_tokens: 50
+"""
+        config_path.write_text(config_content)
+        return config_path
+
+    @classmethod
     def load(cls, config_path: Path | None = None) -> "GundogConfig":
         """Load config from file, falling back to defaults."""
         if config_path is None:
@@ -103,23 +239,12 @@ class GundogConfig:
                 s["ignore_preset"] = IgnorePreset(s["ignore_preset"])
             sources.append(SourceConfig(**s))
 
-        embedding_data = data.get("embedding", {})
-        embedding = EmbeddingConfig(**embedding_data) if embedding_data else EmbeddingConfig()
-
-        storage_data = data.get("storage", {})
-        storage = StorageConfig(**storage_data) if storage_data else StorageConfig()
-
-        graph_data = data.get("graph", {})
-        graph = GraphConfig(**graph_data) if graph_data else GraphConfig()
-
-        hybrid_data = data.get("hybrid", {})
-        hybrid = HybridConfig(**hybrid_data) if hybrid_data else HybridConfig()
-
-        chunking_data = data.get("chunking", {})
-        chunking = ChunkingConfig(**chunking_data) if chunking_data else ChunkingConfig()
-
-        recency_data = data.get("recency", {})
-        recency = RecencyConfig(**recency_data) if recency_data else RecencyConfig()
+        embedding = EmbeddingConfig(**data.get("embedding", {}))
+        storage = StorageConfig(**data.get("storage", {}))
+        graph = GraphConfig(**data.get("graph", {}))
+        hybrid = HybridConfig(**data.get("hybrid", {}))
+        chunking = ChunkingConfig(**data.get("chunking", {}))
+        recency = RecencyConfig(**data.get("recency", {}))
 
         return cls(
             sources=sources,

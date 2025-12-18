@@ -62,9 +62,9 @@ class SimilarityGraph:
         self.edges.clear()
 
         # Create nodes
-        for id, meta in metadata.items():
-            self.nodes[id] = GraphNode(
-                id=id,
+        for node_id, meta in metadata.items():
+            self.nodes[node_id] = GraphNode(
+                id=node_id,
                 type=meta.get("type", "unknown"),
             )
 

@@ -11,7 +11,7 @@ def store_vector_with_metadata(test_context, doc_id, datatable):
     """Store a vector with the given metadata."""
     if test_context["store"] is None:
         test_context["store"] = create_store(
-            test_context["backend"],
+            test_context["use_hnsw"],
             test_context["index_dir"],
         )
 
@@ -27,7 +27,7 @@ def store_multiple_vectors(test_context, datatable):
     """Store multiple vectors with metadata."""
     if test_context["store"] is None:
         test_context["store"] = create_store(
-            test_context["backend"],
+            test_context["use_hnsw"],
             test_context["index_dir"],
         )
 
@@ -69,7 +69,7 @@ def search_vectors(test_context):
 def create_new_store_and_load(test_context):
     """Create a new store instance and load from disk."""
     test_context["store"] = create_store(
-        test_context["backend"],
+        test_context["use_hnsw"],
         test_context["index_dir"],
     )
     test_context["store"].load()

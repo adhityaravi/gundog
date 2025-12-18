@@ -2,18 +2,20 @@
 
 import hashlib
 import subprocess
-from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
+
+import pathspec
 
 from gundog._bm25 import BM25Index
 from gundog._chunker import Chunk, chunk_text, make_chunk_id, parse_chunk_id
 from gundog._config import GundogConfig, SourceConfig
-from gundog._embedder import Embedder
+from gundog._embedder import create_embedder
 from gundog._git import get_git_info
 from gundog._graph import SimilarityGraph
 from gundog._store import create_store
 from gundog._templates import get_ignore_patterns
+from gundog._tfidf import LineTFIDFIndex
 
 
 class Indexer:
@@ -30,19 +32,31 @@ class Indexer:
 
     def __init__(self, config: GundogConfig):
         self.config = config
-        self.embedder = Embedder(config.embedding.model)
-        self.store = create_store(config.storage.backend, config.storage.path)
+        self.embedder = create_embedder(
+            config.embedding.model,
+            enable_onnx=config.embedding.enable_onnx,
+            threads=config.embedding.threads,
+        )
+        self.store = create_store(config.storage.use_hnsw, config.storage.path)
         self.graph = SimilarityGraph(Path(config.storage.path) / "graph.json")
         self.bm25 = BM25Index(Path(config.storage.path) / "bm25.pkl")
+        self.tfidf = LineTFIDFIndex(Path(config.storage.path) / "line_tfidf.pkl")
 
         self.store.load()
         self.graph.load()
         self.bm25.load()
+        self.tfidf.load()
 
     def _should_ignore(self, path: Path, patterns: list[str]) -> bool:
-        """Check if path matches any ignore pattern."""
-        path_str = str(path)
-        return any(fnmatch(path_str, pattern) for pattern in patterns)
+        """Check if path matches any ignore pattern using gitignore-style matching.
+
+        Note: Python 3.13+ has Path.full_match() which handles ** patterns natively.
+        We use pathspec for 3.12 compatibility.
+        """
+        if not patterns:
+            return False
+        spec = pathspec.PathSpec.from_lines("gitwildmatch", patterns)
+        return spec.match_file(path)
 
     def _get_git_blob_hash(self, file_path: Path) -> str | None:
         """Get git blob hash for a file. Returns None if not tracked by git."""
@@ -117,8 +131,8 @@ class Indexer:
                     pattern = line.rstrip("/")
                     patterns.append(f"**/{pattern}")
                     patterns.append(f"**/{pattern}/**")
-        except Exception:
-            pass
+        except (OSError, UnicodeDecodeError):
+            pass  # Silently ignore unreadable .gitignore files
 
         return patterns
 
@@ -320,10 +334,10 @@ class Indexer:
         vectors = self.store.all_vectors()
         metadata: dict[str, dict[str, Any]] = {}
 
-        for id in vectors:
-            result = self.store.get(id)
+        for vec_id in vectors:
+            result = self.store.get(vec_id)
             if result is not None:
-                metadata[id] = result[1]
+                metadata[vec_id] = result[1]
 
         self.graph.build(
             vectors=vectors,
@@ -362,17 +376,60 @@ class Indexer:
                         documents[item_id] = f"{file_path}\n{chunks[chunk_idx].text}"
                 else:
                     documents[item_id] = f"{file_path}\n{content}"
-            except Exception:
-                pass
+            except (OSError, UnicodeDecodeError):
+                continue  # Skip files that can't be read
 
         self.bm25.build(documents)
 
+    def _build_tfidf(self) -> None:
+        """Build per-line TF-IDF index for fine-grained ranking."""
+        if not self.config.chunking.enabled:
+            # TF-IDF per-line only makes sense with chunking
+            return
+
+        print("Building TF-IDF per-line index...")
+        chunks: dict[str, tuple[str, int]] = {}
+
+        for item_id in self.store.all_ids():
+            result = self.store.get(item_id)
+            if not result:
+                continue
+
+            _, meta = result
+            parent_file = meta.get("parent_file", item_id)
+            chunk_idx = meta.get("chunk_index")
+            start_line = meta.get("start_line", 1)
+
+            if chunk_idx is None:
+                # Not a chunk, skip
+                continue
+
+            try:
+                file_path = Path(parent_file)
+                if not file_path.exists():
+                    continue
+
+                content = file_path.read_text(encoding="utf-8")
+                chunk_list = chunk_text(
+                    content,
+                    max_tokens=self.config.chunking.max_tokens,
+                    overlap_tokens=self.config.chunking.overlap_tokens,
+                )
+                if chunk_idx < len(chunk_list):
+                    chunks[item_id] = (chunk_list[chunk_idx].text, start_line)
+            except (OSError, UnicodeDecodeError):
+                continue  # Skip files that can't be read
+
+        self.tfidf.build(chunks)
+
     def _save_all(self) -> None:
-        """Save store, graph, and BM25 index."""
+        """Save store, graph, BM25, and TF-IDF indexes."""
         self.store.save()
         self.graph.save()
         if self.config.hybrid.enabled:
             self.bm25.save()
+        if self.config.chunking.enabled:
+            self.tfidf.save()
 
     def index(self, rebuild: bool = False) -> dict[str, Any]:
         """
@@ -417,6 +474,8 @@ class Indexer:
             self._build_graph()
             if self.config.hybrid.enabled:
                 self._build_bm25()
+            if self.config.chunking.enabled:
+                self._build_tfidf()
             self._save_all()
         else:
             print("No changes, skipping graph rebuild.")

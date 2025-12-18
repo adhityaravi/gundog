@@ -1,0 +1,88 @@
+{
+  "metadata": {
+    "total_files": 64,
+    "total_queries": 20,
+    "source_dirs": [
+      "/data/project-a/docs/adr",
+      "/data/project-a/lib/core/src",
+      "/data/project-a/lib/vpn/src"
+    ]
+  },
+  "results": [
+    {
+      "config": {
+        "name": "small_numpy_st",
+        "model": "BAAI/bge-small-en-v1.5",
+        "storage": "numpy",
+        "embedder": "sentence-transformers"
+      },
+      "file_accuracy": 1.0,
+      "file_mrr": 0.5301984126984127,
+      "chunk_keyword_recall": 0.0,
+      "graph_code_recall": 1.0,
+      "index_time_s": 33.076549258083105,
+      "first_query_ms": 1971.7619901057333,
+      "avg_query_ms": 129.25585367484018
+    },
+    {
+      "config": {
+        "name": "small_hnsw_st",
+        "model": "BAAI/bge-small-en-v1.5",
+        "storage": "hnsw",
+        "embedder": "sentence-transformers"
+      },
+      "file_accuracy": 1.0,
+      "file_mrr": 0.5301984126984127,
+      "chunk_keyword_recall": 0.0,
+      "graph_code_recall": 1.0,
+      "index_time_s": 31.515547924907878,
+      "first_query_ms": 2204.870874993503,
+      "avg_query_ms": 142.66152143245563
+    },
+    {
+      "config": {
+        "name": "small_hnsw_onnx",
+        "model": "BAAI/bge-small-en-v1.5",
+        "storage": "hnsw",
+        "embedder": "onnx"
+      },
+      "file_accuracy": 1.0,
+      "file_mrr": 0.5726984126984127,
+      "chunk_keyword_recall": 0.0,
+      "graph_code_recall": 1.0,
+      "index_time_s": 43.80130214104429,
+      "first_query_ms": 229.832120006904,
+      "avg_query_ms": 29.09960247343406
+    },
+    {
+      "config": {
+        "name": "base_hnsw_st",
+        "model": "BAAI/bge-base-en-v1.5",
+        "storage": "hnsw",
+        "embedder": "sentence-transformers"
+      },
+      "file_accuracy": 1.0,
+      "file_mrr": 0.6463095238095238,
+      "chunk_keyword_recall": 0.0,
+      "graph_code_recall": 1.0,
+      "index_time_s": 91.97802896099165,
+      "first_query_ms": 1944.913140963763,
+      "avg_query_ms": 153.10913403518498
+    },
+    {
+      "config": {
+        "name": "base_hnsw_onnx",
+        "model": "BAAI/bge-base-en-v1.5",
+        "storage": "hnsw",
+        "embedder": "onnx"
+      },
+      "file_accuracy": 1.0,
+      "file_mrr": 0.6076190476190476,
+      "chunk_keyword_recall": 0.0,
+      "graph_code_recall": 1.0,
+      "index_time_s": 131.2039561031852,
+      "first_query_ms": 664.892605971545,
+      "avg_query_ms": 73.13665963010862
+    }
+  ]
+}

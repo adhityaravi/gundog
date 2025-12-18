@@ -1,4 +1,4 @@
-"""Query execution with graph expansion."""
+"""Query execution with two-stage scoring and graph expansion."""
 
 import math
 import time
@@ -10,9 +10,10 @@ from typing import Any
 from gundog._bm25 import BM25Index
 from gundog._chunker import parse_chunk_id
 from gundog._config import GundogConfig
-from gundog._embedder import Embedder
+from gundog._embedder import create_embedder
 from gundog._graph import SimilarityGraph
 from gundog._store import SearchResult, create_store
+from gundog._tfidf import LineTFIDFIndex
 
 
 @dataclass
@@ -35,15 +36,22 @@ class QueryEngine:
 
     def __init__(self, config: GundogConfig):
         self.config = config
-        self.embedder = Embedder(config.embedding.model)
-        self.store = create_store(config.storage.backend, config.storage.path)
+        self.embedder = create_embedder(
+            config.embedding.model,
+            enable_onnx=config.embedding.enable_onnx,
+            threads=config.embedding.threads,
+        )
+        self.store = create_store(config.storage.use_hnsw, config.storage.path)
         self.graph = SimilarityGraph(Path(config.storage.path) / "graph.json")
         self.bm25 = BM25Index(Path(config.storage.path) / "bm25.pkl")
+        self.tfidf = LineTFIDFIndex(Path(config.storage.path) / "line_tfidf.pkl")
 
         self.store.load()
         self.graph.load()
         if config.hybrid.enabled:
             self.bm25.load()
+        if config.chunking.enabled:
+            self.tfidf.load()
 
     @staticmethod
     def _rescale_score(raw_score: float, baseline: float = 0.5) -> float:
@@ -144,6 +152,45 @@ class QueryEngine:
 
         return list(best_by_file.values())
 
+    def _fine_rank(self, results: list[SearchResult], query_text: str) -> list[SearchResult]:
+        """
+        Stage 2: Fine-grained ranking using per-line TF-IDF scores.
+
+        Finds the best matching line within each chunk and boosts scores accordingly.
+        """
+        if not self.config.chunking.enabled or self.tfidf.is_empty:
+            return results
+
+        enhanced_results = []
+        for result in results:
+            best_line_info = self.tfidf.get_best_line(query_text, result.id)
+
+            if best_line_info:
+                best_line_num, line_score = best_line_info
+                # Combine coarse score (70%) with fine score (30%)
+                # Normalize line_score (typically 0-10 range) to 0-1
+                normalized_line_score = min(1.0, line_score / 5.0)
+                combined_score = 0.7 * result.score + 0.3 * normalized_line_score
+
+                # Add best line info to metadata
+                enhanced_metadata = dict(result.metadata)
+                enhanced_metadata["_best_line"] = best_line_num
+                enhanced_metadata["_line_score"] = line_score
+
+                enhanced_results.append(
+                    SearchResult(
+                        id=result.id,
+                        score=combined_score,
+                        metadata=enhanced_metadata,
+                    )
+                )
+            else:
+                enhanced_results.append(result)
+
+        # Re-sort by combined score
+        enhanced_results.sort(key=lambda r: r.score, reverse=True)
+        return enhanced_results
+
     def _vector_search(self, query_text: str, top_k: int, min_score: float) -> list[SearchResult]:
         """Perform vector search with optional BM25 fusion."""
         query_vector = self.embedder.embed_text(query_text)
@@ -164,6 +211,7 @@ class QueryEngine:
 
         entry: dict[str, Any] = {
             "path": parent_file,
+            "name": Path(parent_file).name,
             "type": result.metadata.get("type", "unknown"),
             "score": round(self._rescale_score(result.score), 4),
         }
@@ -171,13 +219,26 @@ class QueryEngine:
         if chunk_idx is not None:
             entry["chunk"] = chunk_idx
 
+        # Always use chunk range for lines, but note best_line for display
         if result.metadata.get("start_line"):
             entry["lines"] = f"{result.metadata['start_line']}-{result.metadata['end_line']}"
+        if result.metadata.get("_best_line"):
+            entry["best_line"] = result.metadata["_best_line"]
 
+        # Build URL with line anchors - always link to chunk range for context
         if result.metadata.get("git_url"):
-            entry["git_url"] = result.metadata["git_url"]
-            entry["git_branch"] = result.metadata["git_branch"]
-            entry["git_relative_path"] = result.metadata["git_relative_path"]
+            git_url = result.metadata["git_url"]
+            git_branch = result.metadata["git_branch"]
+            git_relative_path = result.metadata["git_relative_path"]
+            anchor_prefix = "L"
+
+            base_url = f"{git_url}/blob/{git_branch}/{git_relative_path}"
+            if result.metadata.get("start_line"):
+                start = result.metadata["start_line"]
+                end = result.metadata["end_line"]
+                entry["url"] = f"{base_url}#{anchor_prefix}{start}-{anchor_prefix}{end}"
+            else:
+                entry["url"] = base_url
 
         return entry
 
@@ -275,9 +336,12 @@ class QueryEngine:
         Returns:
             QueryResult with direct matches and related files
         """
-        # Phase 1: Vector search
+        # Stage 1: Coarse retrieval (vector search + BM25 fusion)
         search_results = self._vector_search(query_text, top_k, min_score)
         search_results = self._deduplicate_chunks(search_results)
+
+        # Stage 2: Fine-grained ranking (TF-IDF per-line)
+        search_results = self._fine_rank(search_results, query_text)
 
         # Apply recency boost before sorting
         search_results = self._apply_recency_boost(search_results)

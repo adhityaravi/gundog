@@ -30,7 +30,7 @@ def test_context():
         "query_result": None,
         "index_summary": None,
         "vectors": {},
-        "backend": "numpy",
+        "use_hnsw": False,  # Use numpy backend by default for tests
         "chunking_enabled": False,
         "chunking_max_tokens": 512,
         "hybrid_enabled": True,
@@ -62,7 +62,8 @@ def clean_environment(test_context, temp_directory):
 @given(parsers.parse('the storage backend is "{backend}"'))
 def set_storage_backend(test_context, backend):
     """Set the storage backend to use."""
-    test_context["backend"] = backend
+    # Convert backend name to use_hnsw boolean
+    test_context["use_hnsw"] = backend.lower() in ("hnsw", "lancedb")
 
 
 def create_config(test_context) -> GundogConfig:
@@ -97,7 +98,7 @@ def create_config(test_context) -> GundogConfig:
         sources=sources,
         embedding=EmbeddingConfig(model="BAAI/bge-small-en-v1.5"),
         storage=StorageConfig(
-            backend=test_context["backend"],
+            use_hnsw=test_context["use_hnsw"],
             path=str(test_context["index_dir"]),
         ),
         graph=GraphConfig(

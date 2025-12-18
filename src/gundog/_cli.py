@@ -44,20 +44,75 @@ class OutputFormat(str, Enum):
     pretty = "pretty"
 
 
-def load_config(config_path: Path | None) -> GundogConfig:
-    """Load config from file."""
+def load_config(config_path: Path | None, auto_bootstrap: bool = False) -> GundogConfig:
+    """Load config from file, optionally bootstrapping if not found."""
     path = expand_path(config_path) if config_path else DEFAULT_CONFIG_PATH
     try:
         return GundogConfig.load(path)
     except FileNotFoundError:
-        console.print(f"[red]Error:[/red] Config file not found: {path}")
+        if auto_bootstrap and config_path is None:
+            # Auto-create config by scanning directory
+            console.print("[yellow]No config found. Creating .gundog/config.yaml...[/yellow]")
+            created_path = GundogConfig.bootstrap(path)
+            console.print(f"[green]Created config:[/green] {created_path}")
+            console.print("[dim]Edit this file to customize what gets indexed.[/dim]")
+            console.print()
+            return GundogConfig.load(path)
+        else:
+            console.print(f"[red]Error:[/red] Config file not found: {path}")
+            console.print()
+            console.print("Create a config file at .gundog/config.yaml:")
+            console.print("  sources:")
+            console.print("    - path: ./docs")
+            console.print('      glob: "**/*.md"')
+            console.print("    - path: ./src")
+            console.print('      glob: "**/*.py"')
+            raise typer.Exit(1) from None
+
+
+@app.command("convert-onnx")
+def convert_onnx(
+    model: Annotated[
+        str,
+        typer.Option(
+            "--model",
+            "-m",
+            help="HuggingFace model identifier to convert",
+        ),
+    ] = "BAAI/bge-large-en-v1.5",
+    output: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Output directory (default: ~/.cache/gundog/onnx/{model})",
+        ),
+    ] = None,
+) -> None:
+    """Convert an embedding model to ONNX format for faster inference."""
+    from gundog._embedder_onnx import convert_to_onnx
+
+    console.print(f"[cyan]Converting model:[/cyan] {model}")
+    console.print()
+
+    try:
+        output_path = convert_to_onnx(model, output)
         console.print()
-        console.print("Create a config file at .gundog/config.yaml:")
-        console.print("  sources:")
-        console.print("    - path: ./docs")
-        console.print('      glob: "**/*.md"')
-        console.print("    - path: ./src")
-        console.print('      glob: "**/*.py"')
+        console.print("[green]Conversion complete![/green]")
+        console.print(f"  Output: {output_path}")
+        console.print()
+        console.print("To use ONNX embeddings, update your config:")
+        console.print("  [dim]embedding:[/dim]")
+        console.print(f"  [dim]  model: {model}[/dim]")
+        console.print("  [dim]  backend: onnx[/dim]")
+    except ImportError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        console.print()
+        console.print("Install ONNX dependencies with:")
+        console.print("  [bold]pip install gundog[onnx][/bold]")
+        raise typer.Exit(1) from None
+    except Exception as e:
+        console.print(f"[red]Error during conversion:[/red] {e}")
         raise typer.Exit(1) from None
 
 
@@ -79,8 +134,11 @@ def index(
         ),
     ] = False,
 ) -> None:
-    """Index sources for semantic search."""
-    cfg = load_config(config)
+    """Index sources for semantic search.
+
+    If no config exists, auto-creates one by scanning the current directory.
+    """
+    cfg = load_config(config, auto_bootstrap=True)
     indexer = Indexer(cfg)
     summary = indexer.index(rebuild=rebuild)
 
@@ -169,22 +227,18 @@ def query(
         console.print("Start it with: [bold]gundog daemon start[/bold]")
         raise typer.Exit(1)
 
-    # Convert daemon response to match expected format
-    class Result:
-        def __init__(self, data: dict):
-            self.query = data["query"]
-            self.direct = data["direct"]
-            self.related = data["related"]
-
-    result = Result(result_data)
+    # Use dict directly with bracket notation
+    query = result_data["query"]
+    direct = result_data["direct"]
+    related = result_data["related"]
 
     if output_format == OutputFormat.json:
         console.print_json(json.dumps(result_data))
 
     elif output_format == OutputFormat.paths:
-        for item in result.direct:
+        for item in direct:
             console.print(item["path"])
-        for item in result.related:
+        for item in related:
             console.print(item["path"])
 
     else:  # pretty
@@ -193,8 +247,8 @@ def query(
         # Build direct matches table
         type_styles = {"adr": "magenta", "code": "green", "doc": "yellow"}
 
-        if result.direct:
-            has_lines = any(item.get("lines") for item in result.direct)
+        if direct:
+            has_lines = any(item.get("lines") for item in direct)
 
             table = Table(
                 box=box.ROUNDED,
@@ -211,7 +265,7 @@ def query(
             if has_lines:
                 table.add_column("Lines", style="yellow", width=9, justify="center")
 
-            for i, item in enumerate(result.direct, 1):
+            for i, item in enumerate(direct, 1):
                 ts = type_styles.get(item["type"], "white")
                 filename = Path(item["path"]).name
                 row = [
@@ -228,16 +282,16 @@ def query(
             left_content = Text("No direct matches", style="dim")
 
         # Build related tree
-        if result.related:
+        if related:
             tree = Tree("", guide_style="dim", hide_root=True)
 
             branches: dict[str, Tree] = {}
-            for item in result.direct:
+            for item in direct:
                 path = item["path"]
                 label = f"[bold]{Path(path).name}[/bold]"
                 branches[path] = tree.add(label)
 
-            for item in result.related:
+            for item in related:
                 via = item["via"]
                 path = item["path"]
                 weight = item.get("weight", item.get("edge_weight", 0))
@@ -272,7 +326,7 @@ def query(
         # Wrap in panel
         panel = Panel(
             layout,
-            title=f"[bold white]{result.query}[/bold white]",
+            title=f"[bold white]{query}[/bold white]",
             border_style="blue",
             padding=(1, 2),
         )
@@ -319,6 +373,29 @@ def _remove_pid() -> None:
     """Remove PID file."""
     pid_path = DaemonConfig.get_pid_path()
     pid_path.unlink(missing_ok=True)
+
+
+def _notify_daemon_reload() -> bool:
+    """Tell running daemon to reload config. Returns True if successful."""
+    import httpx
+
+    try:
+        config = DaemonConfig.load()
+    except FileNotFoundError:
+        return False
+
+    url = f"http://{config.daemon.host}:{config.daemon.port}/api/reload"
+    headers = {}
+    if config.daemon.auth.enabled and config.daemon.auth.api_key:
+        headers["X-API-Key"] = config.daemon.auth.api_key
+
+    try:
+        with httpx.Client(timeout=5.0) as client:
+            response = client.post(url, headers=headers)
+            response.raise_for_status()
+            return True
+    except (httpx.ConnectError, httpx.HTTPStatusError):
+        return False
 
 
 @daemon_app.command("start")
@@ -482,6 +559,16 @@ def daemon_add(
     if was_default is None and config.default_index == name:
         console.print("[dim]Set as default index[/dim]")
 
+    # Notify running daemon to reload config
+    pid = _get_pid()
+    if pid:
+        if _notify_daemon_reload():
+            console.print("[dim]Daemon reloaded config[/dim]")
+        else:
+            console.print(
+                "[yellow]Warning:[/yellow] Could not notify daemon. Restart may be needed."
+            )
+
 
 @daemon_app.command("remove")
 def daemon_remove(
@@ -500,6 +587,16 @@ def daemon_remove(
 
     config.save()
     console.print(f"[green]Removed index:[/green] {name}")
+
+    # Notify running daemon to reload config
+    pid = _get_pid()
+    if pid:
+        if _notify_daemon_reload():
+            console.print("[dim]Daemon reloaded config[/dim]")
+        else:
+            console.print(
+                "[yellow]Warning:[/yellow] Could not notify daemon. Restart may be needed."
+            )
 
 
 @daemon_app.command("list")

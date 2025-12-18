@@ -1,0 +1,143 @@
+{
+  "metadata": {
+    "queries": 50,
+    "timestamp": "2025-12-18 00:09:12",
+    "source_dirs": [
+      "/data/project-a/docs/adr",
+      "/data/project-a/lib/core/src",
+      "/data/project-a/lib/vpn/src",
+      "/data/project-a/lib/testing/src",
+      "/data/project-a/lib/krm/src"
+    ],
+    "note": "Per-query details omitted for brevity. Summary statistics below."
+  },
+  "configs": [
+    {
+      "name": "1_numpy_nochunk_bm25",
+      "storage": "numpy",
+      "chunking": false,
+      "bm25": true,
+      "tfidf": false
+    },
+    {
+      "name": "2_numpy_chunk_bm25",
+      "storage": "numpy",
+      "chunking": true,
+      "bm25": true,
+      "tfidf": false
+    },
+    {
+      "name": "3_numpy_chunk_bm25_tfidf",
+      "storage": "numpy",
+      "chunking": true,
+      "bm25": true,
+      "tfidf": true
+    },
+    {
+      "name": "4_hnsw_chunk_bm25",
+      "storage": "hnsw",
+      "chunking": true,
+      "bm25": true,
+      "tfidf": false
+    },
+    {
+      "name": "5_hnsw_chunk_bm25_tfidf",
+      "storage": "hnsw",
+      "chunking": true,
+      "bm25": true,
+      "tfidf": true
+    }
+  ],
+  "results": [
+    {
+      "config": "1_numpy_nochunk_bm25",
+      "storage": "numpy",
+      "chunking": false,
+      "bm25": true,
+      "tfidf": false,
+      "index_time_s": 10.94,
+      "files_indexed": 60,
+      "chunks_indexed": 60,
+      "accuracy": 0.92,
+      "hits": 46,
+      "total_queries": 50,
+      "rank1_hits": 27,
+      "top3_hits": 38,
+      "avg_rank": 2.07,
+      "avg_query_time_ms": 11.68,
+      "first_query_time_ms": 1971.59
+    },
+    {
+      "config": "2_numpy_chunk_bm25",
+      "storage": "numpy",
+      "chunking": true,
+      "bm25": true,
+      "tfidf": false,
+      "index_time_s": 36.43,
+      "files_indexed": 60,
+      "chunks_indexed": 366,
+      "accuracy": 0.98,
+      "hits": 49,
+      "total_queries": 50,
+      "rank1_hits": 25,
+      "top3_hits": 39,
+      "avg_rank": 2.16,
+      "avg_query_time_ms": 11.52,
+      "first_query_time_ms": 1969.16
+    },
+    {
+      "config": "3_numpy_chunk_bm25_tfidf",
+      "storage": "numpy",
+      "chunking": true,
+      "bm25": true,
+      "tfidf": true,
+      "index_time_s": 36.22,
+      "files_indexed": 60,
+      "chunks_indexed": 366,
+      "accuracy": 0.98,
+      "hits": 49,
+      "total_queries": 50,
+      "rank1_hits": 25,
+      "top3_hits": 39,
+      "avg_rank": 2.16,
+      "avg_query_time_ms": 11.87,
+      "first_query_time_ms": 1954.85
+    },
+    {
+      "config": "4_hnsw_chunk_bm25",
+      "storage": "hnsw",
+      "chunking": true,
+      "bm25": true,
+      "tfidf": false,
+      "index_time_s": 34.62,
+      "files_indexed": 60,
+      "chunks_indexed": 366,
+      "accuracy": 0.98,
+      "hits": 49,
+      "total_queries": 50,
+      "rank1_hits": 25,
+      "top3_hits": 40,
+      "avg_rank": 2.10,
+      "avg_query_time_ms": 11.63,
+      "first_query_time_ms": 1961.72
+    },
+    {
+      "config": "5_hnsw_chunk_bm25_tfidf",
+      "storage": "hnsw",
+      "chunking": true,
+      "bm25": true,
+      "tfidf": true,
+      "index_time_s": 35.41,
+      "files_indexed": 60,
+      "chunks_indexed": 366,
+      "accuracy": 0.98,
+      "hits": 49,
+      "total_queries": 50,
+      "rank1_hits": 25,
+      "top3_hits": 40,
+      "avg_rank": 2.10,
+      "avg_query_time_ms": 12.06,
+      "first_query_time_ms": 1967.33
+    }
+  ]
+}

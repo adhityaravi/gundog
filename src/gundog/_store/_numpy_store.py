@@ -72,11 +72,11 @@ class NumpyStore:
             return {}
 
         result = {}
-        for id in ids:
-            if id in self._id_to_idx:
-                idx = self._id_to_idx[id]
-                meta = {k: v for k, v in self._metadata[id].items() if k != "_idx"}
-                result[id] = (self._vectors[idx], meta)
+        for item_id in ids:
+            if item_id in self._id_to_idx:
+                idx = self._id_to_idx[item_id]
+                meta = {k: v for k, v in self._metadata[item_id].items() if k != "_idx"}
+                result[item_id] = (self._vectors[idx], meta)
         return result
 
     def delete(self, id: str) -> bool:
@@ -121,11 +121,11 @@ class NumpyStore:
         results = []
         for local_idx in top_local_indices:
             actual_idx = valid_indices[local_idx]
-            id = self._idx_to_id.get(actual_idx)
-            if id is None:
+            item_id = self._idx_to_id.get(actual_idx)
+            if item_id is None:
                 continue
-            meta = {k: v for k, v in self._metadata[id].items() if k != "_idx"}
-            results.append(SearchResult(id=id, score=float(scores[local_idx]), metadata=meta))
+            meta = {key: val for key, val in self._metadata[item_id].items() if key != "_idx"}
+            results.append(SearchResult(id=item_id, score=float(scores[local_idx]), metadata=meta))
 
         return results
 

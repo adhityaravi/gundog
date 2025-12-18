@@ -1,0 +1,62 @@
+{
+  "metadata": {
+    "sources": [
+      "/data/project-a/docs/adr",
+      "/data/project-a/lib/core/src",
+      "/data/project-a/lib/vpn/src",
+      "/data/project-b/src",
+      "/data/project-c/docs"
+    ],
+    "total_queries": 26
+  },
+  "results": [
+    {
+      "config": "small_numpy_st",
+      "total_files": 121,
+      "total_chunks": 0,
+      "file_accuracy": 1.0,
+      "file_mrr": 0.5593406593406594,
+      "index_time_s": 54.45384361199103,
+      "first_query_ms": 1873.9266858901829,
+      "avg_query_ms": 84.60049216563885,
+      "failed_queries": []
+    },
+    {
+      "config": "small_hnsw_st",
+      "total_files": 121,
+      "total_chunks": 0,
+      "file_accuracy": 0.9615384615384616,
+      "file_mrr": 0.5401098901098901,
+      "index_time_s": 59.02753954799846,
+      "first_query_ms": 1881.6809600684792,
+      "avg_query_ms": 84.5263530768884,
+      "failed_queries": [
+        "managed mode vs hardened mode... (expected: managed-mode)"
+      ]
+    },
+    {
+      "config": "small_hnsw_onnx",
+      "total_files": 121,
+      "total_chunks": 0,
+      "file_accuracy": 1.0,
+      "file_mrr": 0.6182692307692308,
+      "index_time_s": 92.59964328608476,
+      "first_query_ms": 186.51424604468048,
+      "avg_query_ms": 15.006000767103755,
+      "failed_queries": []
+    },
+    {
+      "config": "base_hnsw_onnx",
+      "total_files": 121,
+      "total_chunks": 0,
+      "file_accuracy": 0.9615384615384616,
+      "file_mrr": 0.6125457875457876,
+      "index_time_s": 245.32742796093225,
+      "first_query_ms": 671.9441208988428,
+      "avg_query_ms": 46.38756355808045,
+      "failed_queries": [
+        "hardened security mode configuration... (expected: hardened-mode)"
+      ]
+    }
+  ]
+}
