@@ -1,6 +1,6 @@
 [project]
 name = "gundog"
-version = "0.3.0"
+version = "0.3.1"
 description = "Semantic embedding validation tool for ADRs and code"
 readme = "README.md"
 license = "GPL-3.0-or-later"
