@@ -21,6 +21,7 @@ pytest_plugins = [
     "tests.integration.steps.querying_steps",
     "tests.integration.steps.storage_steps",
     "tests.integration.steps.feature_steps",
+    "tests.integration.steps.ssl_steps",
 ]
 
 

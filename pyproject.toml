@@ -32,6 +32,8 @@ dependencies = [
     "hnswlib>=0.8.0",
     # gitignore-style pattern matching (Python 3.13 has Path.full_match, but we support 3.12)
     "pathspec>=0.12.0",
+    # PyTorch - explicit dependency to control CPU/GPU via tool.uv.sources
+    "torch>=2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -144,3 +146,17 @@ exclude_commit_patterns = ["^chore\\(release\\):"]
 
 [tool.semantic_release.remote]
 type = "github"
+
+[tool.uv]
+# Use CPU-only PyTorch to avoid ~3GB of NVIDIA CUDA dependencies
+# GPU users can override with: pip install torch --index-url https://download.pytorch.org/whl/cu121
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu" },
+]

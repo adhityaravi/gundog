@@ -19,6 +19,7 @@ from rich.tree import Tree
 from gundog._config import GundogConfig
 from gundog._daemon_config import DaemonConfig
 from gundog._indexer import Indexer
+from gundog._ssl import configure_ssl, get_ssl_error_help, is_ssl_error
 
 app = typer.Typer(
     name="gundog",
@@ -88,8 +89,20 @@ def convert_onnx(
             help="Output directory (default: ~/.cache/gundog/onnx/{model})",
         ),
     ] = None,
+    no_verify_ssl: Annotated[
+        bool,
+        typer.Option(
+            "--no-verify-ssl",
+            help="Disable SSL certificate verification (insecure)",
+        ),
+    ] = False,
 ) -> None:
     """Convert an embedding model to ONNX format for faster inference."""
+    # Configure SSL before importing HuggingFace libraries
+    if no_verify_ssl:
+        console.print("[yellow]Warning:[/yellow] SSL verification disabled")
+    configure_ssl(no_verify=no_verify_ssl)
+
     from gundog._embedder_onnx import convert_to_onnx
 
     console.print(f"[cyan]Converting model:[/cyan] {model}")
@@ -112,6 +125,9 @@ def convert_onnx(
         console.print("  [bold]pip install gundog[onnx][/bold]")
         raise typer.Exit(1) from None
     except Exception as e:
+        if is_ssl_error(e):
+            console.print(get_ssl_error_help())
+            raise typer.Exit(1) from None
         console.print(f"[red]Error during conversion:[/red] {e}")
         raise typer.Exit(1) from None
 
@@ -133,25 +149,43 @@ def index(
             help="Rebuild entire index from scratch",
         ),
     ] = False,
+    no_verify_ssl: Annotated[
+        bool,
+        typer.Option(
+            "--no-verify-ssl",
+            help="Disable SSL certificate verification (insecure)",
+        ),
+    ] = False,
 ) -> None:
     """Index sources for semantic search.
 
     If no config exists, auto-creates one by scanning the current directory.
     """
-    cfg = load_config(config, auto_bootstrap=True)
-    indexer = Indexer(cfg)
-    summary = indexer.index(rebuild=rebuild)
+    # Configure SSL before importing HuggingFace libraries
+    if no_verify_ssl:
+        console.print("[yellow]Warning:[/yellow] SSL verification disabled")
+    configure_ssl(no_verify=no_verify_ssl)
 
-    console.print()
-    console.print("[green]Indexing complete![/green]")
-    if summary.get("chunks_indexed", 0) > 0:
-        console.print(
-            f"  Files indexed: {summary['files_indexed']} ({summary['chunks_indexed']} chunks)"
-        )
-    else:
-        console.print(f"  Files indexed: {summary['files_indexed']}")
-    console.print(f"  Unchanged: {summary['files_skipped']}")
-    console.print(f"  Removed: {summary['files_removed']}")
+    try:
+        cfg = load_config(config, auto_bootstrap=True)
+        indexer = Indexer(cfg)
+        summary = indexer.index(rebuild=rebuild)
+
+        console.print()
+        console.print("[green]Indexing complete![/green]")
+        if summary.get("chunks_indexed", 0) > 0:
+            console.print(
+                f"  Files indexed: {summary['files_indexed']} ({summary['chunks_indexed']} chunks)"
+            )
+        else:
+            console.print(f"  Files indexed: {summary['files_indexed']}")
+        console.print(f"  Unchanged: {summary['files_skipped']}")
+        console.print(f"  Removed: {summary['files_removed']}")
+    except Exception as e:
+        if is_ssl_error(e):
+            console.print(get_ssl_error_help())
+            raise typer.Exit(1) from None
+        raise
 
 
 def _query_via_daemon(

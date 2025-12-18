@@ -14,6 +14,10 @@ on:
         default: true
         type: boolean
 
+env:
+  # Use CPU-only PyTorch to avoid slow NVIDIA CUDA package downloads
+  UV_EXTRA_INDEX_URL: https://download.pytorch.org/whl/cpu
+
 jobs:
   quality:
     name: Quality
