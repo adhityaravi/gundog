@@ -1,13 +1,24 @@
 """Daemon server for gundog - persistent query service."""
 
+import json
 import logging
+import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from importlib import resources
 from pathlib import Path
+from typing import Any
 
 import uvicorn
-from fastapi import Depends, FastAPI, HTTPException, Query, Security
+from fastapi import (
+    Depends,
+    FastAPI,
+    HTTPException,
+    Query,
+    Security,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.security import APIKeyHeader
@@ -257,6 +268,186 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
                 for r in result.related
             ],
         }
+
+    # -------------------------------------------------------------------------
+    # WebSocket API (for TUI streaming)
+    # -------------------------------------------------------------------------
+
+    def _build_query_result(
+        request_id: str | None,
+        result: Any,
+        timing_ms: float,
+    ) -> dict[str, Any]:
+        """Build query_result response."""
+        return {
+            "type": "query_result",
+            "id": request_id,
+            "timing_ms": timing_ms,
+            "direct": [
+                {
+                    "path": d["path"],
+                    "score": d["score"],
+                    "type": d.get("type", "code"),
+                    "lines": d.get("lines"),
+                    "chunk_index": d.get("chunk_index"),
+                }
+                for d in result.direct
+            ],
+            "related": [
+                {
+                    "path": r["path"],
+                    "via": r["via"],
+                    "edge_weight": r["edge_weight"],
+                    "depth": r.get("depth", 1),
+                    "type": r.get("type", "code"),
+                }
+                for r in result.related
+            ],
+            "graph": {
+                "nodes": [
+                    {"id": n["path"], "type": n.get("type", "code"), "score": n.get("score")}
+                    for n in result.direct
+                ],
+                "edges": [],  # TODO: populate from similarity graph when available
+            },
+        }
+
+    def _build_index_list() -> dict[str, Any]:
+        """Build index_list response."""
+        return {
+            "type": "index_list",
+            "indexes": [
+                {
+                    "name": name,
+                    "files": 0,  # TODO: get actual count from index
+                    "chunks": 0,
+                    "last_updated": None,
+                    "config": {},
+                    "sample_paths": [],
+                }
+                for name, path in manager.config.indexes.items()
+            ],
+            "current": manager.active_index,
+        }
+
+    def _build_error(
+        request_id: str | None,
+        code: str,
+        message: str,
+    ) -> dict[str, Any]:
+        """Build error response."""
+        return {
+            "type": "error",
+            "id": request_id,
+            "code": code,
+            "message": message,
+        }
+
+    @app.websocket("/ws")
+    async def websocket_endpoint(websocket: WebSocket) -> None:
+        """WebSocket endpoint for TUI streaming communication."""
+        await websocket.accept()
+        logger.info("WebSocket client connected")
+
+        try:
+            while True:
+                raw_message = await websocket.receive_text()
+
+                try:
+                    message = json.loads(raw_message)
+                except json.JSONDecodeError:
+                    await websocket.send_json(
+                        _build_error(None, "INVALID_REQUEST", "Invalid JSON")
+                    )
+                    continue
+
+                msg_type = message.get("type")
+                request_id = message.get("id")
+
+                if msg_type == "query":
+                    await _handle_ws_query(websocket, message, request_id)
+                elif msg_type == "list_indexes":
+                    await websocket.send_json(_build_index_list())
+                elif msg_type == "switch_index":
+                    await _handle_ws_switch_index(websocket, message, request_id)
+                else:
+                    await websocket.send_json(
+                        _build_error(request_id, "INVALID_REQUEST", f"Unknown message type: {msg_type}")
+                    )
+
+        except WebSocketDisconnect:
+            logger.info("WebSocket client disconnected")
+        except Exception as e:
+            logger.exception(f"WebSocket error: {e}")
+
+    async def _handle_ws_query(
+        websocket: WebSocket,
+        message: dict[str, Any],
+        request_id: str | None,
+    ) -> None:
+        """Handle query request over WebSocket."""
+        query_text = message.get("query", "")
+        top_k = message.get("top_k", 10)
+        index_name = message.get("index")
+
+        if not query_text:
+            await websocket.send_json(
+                _build_error(request_id, "INVALID_REQUEST", "Query text is required")
+            )
+            return
+
+        try:
+            start_time = time.perf_counter()
+            engine = manager.ensure_loaded(index_name)
+            result = engine.query(query_text, top_k=top_k)
+            timing_ms = (time.perf_counter() - start_time) * 1000
+
+            await websocket.send_json(
+                _build_query_result(request_id, result, timing_ms)
+            )
+        except ValueError as e:
+            await websocket.send_json(
+                _build_error(request_id, "INDEX_NOT_FOUND", str(e))
+            )
+        except Exception as e:
+            logger.exception(f"Query failed: {e}")
+            await websocket.send_json(
+                _build_error(request_id, "QUERY_FAILED", str(e))
+            )
+
+    async def _handle_ws_switch_index(
+        websocket: WebSocket,
+        message: dict[str, Any],
+        request_id: str | None,
+    ) -> None:
+        """Handle switch_index request over WebSocket."""
+        index_name = message.get("index")
+
+        if not index_name:
+            await websocket.send_json(
+                _build_error(request_id, "INVALID_REQUEST", "Index name is required")
+            )
+            return
+
+        if index_name not in manager.config.indexes:
+            await websocket.send_json(
+                _build_error(request_id, "INDEX_NOT_FOUND", f"Index '{index_name}' does not exist")
+            )
+            return
+
+        try:
+            manager.load_index(index_name)
+            await websocket.send_json({
+                "type": "index_switched",
+                "index": index_name,
+                "files": 0,  # TODO: get actual count
+                "sample_paths": [],
+            })
+        except Exception as e:
+            logger.exception(f"Failed to switch index: {e}")
+            await websocket.send_json(
+                _build_error(request_id, "INDEX_NOT_FOUND", str(e))
+            )
 
     # Serve UI if enabled
     if config.daemon.serve_ui:
