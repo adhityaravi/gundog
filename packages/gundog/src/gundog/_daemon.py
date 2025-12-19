@@ -13,9 +13,11 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import APIKeyHeader
 
 from gundog._config import EmbeddingConfig, GundogConfig, StorageConfig
-from gundog._daemon_config import DaemonConfig
 from gundog._git import build_line_anchor
 from gundog._query import QueryEngine
+
+# Import from core
+from gundog_core import DaemonConfig
 
 logger = logging.getLogger("gundog.daemon")
 
@@ -176,8 +178,18 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
 
     @app.get("/api/indexes")
     async def list_indexes(_: None = Depends(verify_api_key)) -> dict:
+        # Return list format compatible with gundog-client
+        indexes_list = [
+            {
+                "name": name,
+                "path": path,
+                "file_count": 0,  # TODO: get actual count from index
+                "is_active": name == manager.active_index,
+            }
+            for name, path in manager.config.indexes.items()
+        ]
         return {
-            "indexes": manager.config.indexes,
+            "indexes": indexes_list,
             "active": manager.active_index,
             "default": manager.config.default_index,
         }

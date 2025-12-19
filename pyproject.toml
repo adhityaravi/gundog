@@ -1,66 +1,37 @@
-[project]
-name = "gundog"
-version = "0.3.1"
-description = "A fast semantic search and retrieval engine"
-readme = "README.md"
-license = "GPL-3.0-or-later"
-requires-python = ">=3.12"
-authors = [{ name = "ivdi" }]
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-]
-dependencies = [
-    "sentence-transformers>=2.2.0",
-    "numpy>=1.24.0",
-    "pyyaml>=6.0",
-    "typer>=0.12.0",
-    "rich>=13.0",
-    "rank-bm25>=0.2.2",
-    "fastapi>=0.115.0",
-    "uvicorn>=0.32.0",
-    "httpx>=0.27.0",
-    "onnxruntime>=1.16.0",
-    "optimum[onnxruntime]>=1.13.0",
-    "transformers>=4.35.0",
-    "hnswlib>=0.8.0",
-    # gitignore-style pattern matching (Python 3.13 has Path.full_match, but we support 3.12)
-    "pathspec>=0.12.0",
-    # PyTorch - explicit dependency to control CPU/GPU via tool.uv.sources
-    "torch>=2.0.0",
-]
+# Gundog Monorepo Workspace
+# This is the workspace root - individual packages are in packages/
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0",
-    "pytest-cov>=4.0",
-    "pytest-bdd>=7.0",
-    "ruff>=0.8",
-    "pyright>=1.1",
-    "pre-commit>=3.0",
-    "tox>=4.0",
-    "tox-uv>=1.0",
-    "python-semantic-release>=9.0",
-]
+# NOTE: This is a virtual workspace root, not a distributable package.
+# Individual packages are in packages/
 
-[project.scripts]
-gundog = "gundog._cli:main"
+# =============================================================================
+# UV WORKSPACE
+# =============================================================================
+[tool.uv.workspace]
+members = ["packages/*"]
 
-[build-system]
-requires = ["hatchling>=1.27"]
-build-backend = "hatchling.build"
+[tool.uv]
+# Use CPU-only PyTorch to avoid ~3GB of NVIDIA CUDA dependencies
+# GPU users can override with: pip install torch --index-url https://download.pytorch.org/whl/cu121
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/gundog"]
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+# Local workspace dependencies for development
+gundog-core = { workspace = true }
+gundog-client = { workspace = true }
+
+# =============================================================================
+# SHARED TOOLING (applies to all packages)
+# =============================================================================
 [tool.ruff]
 line-length = 99
 target-version = "py312"
-src = ["src", "tests"]
+src = ["packages/*/src", "tests"]
 
 [tool.ruff.lint]
 select = [
@@ -93,7 +64,7 @@ line-ending = "lf"
 pythonVersion = "3.12"
 pythonPlatform = "Linux"
 typeCheckingMode = "standard"
-include = ["src"]
+include = ["packages/*/src"]
 exclude = ["**/__pycache__", ".venv", "venv", ".tox"]
 reportMissingImports = true
 reportUnusedImport = true
@@ -105,7 +76,7 @@ reportMissingTypeStubs = false
 reportUntypedFunctionDecorator = false
 
 [tool.coverage.run]
-source = ["src/gundog"]
+source = ["packages/*/src"]
 branch = true
 omit = ["tests/*", "**/__pycache__/*", ".venv/*"]
 
@@ -122,15 +93,25 @@ exclude_lines = [
 minversion = "8.0"
 addopts = "-v --tb=short"
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["packages/core/src", "packages/client/src", "packages/gundog/src"]
 
+# =============================================================================
+# SEMANTIC RELEASE (lock-step versioning for all packages)
+# =============================================================================
 [tool.semantic_release]
 allow_zero_version = true
 major_on_zero = false
-version_toml = ["pyproject.toml:project.version"]
-version_variables = ["src/gundog/_version.py:__version__"]
+version_toml = [
+    "packages/core/pyproject.toml:project.version",
+    "packages/client/pyproject.toml:project.version",
+    "packages/gundog/pyproject.toml:project.version",
+]
+version_variables = [
+    "packages/gundog/src/gundog/_version.py:__version__",
+    "packages/client/src/gundog_client/_version.py:__version__",
+]
 branch = "main"
-build_command = "uv build"
+build_command = "uv build --all-packages"
 commit_message = "chore(release): {version}"
 tag_format = "v{version}"
 
@@ -144,17 +125,3 @@ exclude_commit_patterns = ["^chore\\(release\\):"]
 
 [tool.semantic_release.remote]
 type = "github"
-
-[tool.uv]
-# Use CPU-only PyTorch to avoid ~3GB of NVIDIA CUDA dependencies
-# GPU users can override with: pip install torch --index-url https://download.pytorch.org/whl/cu121
-
-[[tool.uv.index]]
-name = "pytorch-cpu"
-url = "https://download.pytorch.org/whl/cpu"
-explicit = true
-
-[tool.uv.sources]
-torch = [
-    { index = "pytorch-cpu" },
-]

@@ -189,18 +189,18 @@ async function loadIndexes() {
     const data = await res.json();
     select.innerHTML = "";
 
-    const indexes = Object.keys(data.indexes || {});
+    const indexes = data.indexes || [];
     if (indexes.length === 0) {
       select.innerHTML = '<option value="">No indexes</option>';
       select.style.display = "none";
       return;
     }
 
-    indexes.forEach(name => {
+    indexes.forEach(idx => {
       const opt = document.createElement("option");
-      opt.value = name;
-      opt.textContent = name;
-      if (name === data.default) opt.selected = true;
+      opt.value = idx.name;
+      opt.textContent = idx.name;
+      if (idx.is_active || idx.name === data.default) opt.selected = true;
       select.appendChild(opt);
     });
 

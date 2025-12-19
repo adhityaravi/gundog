@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from gundog._daemon_config import DaemonConfig, DaemonSettings
+from gundog_core import DaemonConfig, DaemonSettings
 
 
 def test_daemon_config_defaults():

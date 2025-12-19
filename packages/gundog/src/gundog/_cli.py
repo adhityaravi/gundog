@@ -1,4 +1,11 @@
-"""Command-line interface for gundog using Typer."""
+"""Command-line interface for gundog.
+
+This module provides the full gundog CLI. If gundog-client is installed,
+it extends the client CLI with additional commands (index, daemon, convert-onnx).
+Otherwise, it provides only the server-side commands.
+"""
+
+from __future__ import annotations
 
 import json
 import os
@@ -17,15 +24,25 @@ from rich.text import Text
 from rich.tree import Tree
 
 from gundog._config import GundogConfig
-from gundog._daemon_config import DaemonConfig
-from gundog._indexer import Indexer
 from gundog._ssl import configure_ssl, get_ssl_error_help, is_ssl_error
 
-app = typer.Typer(
-    name="gundog",
-    help="Semantic retrieval for architectural knowledge",
-    no_args_is_help=True,
-)
+# Import config from core
+from gundog_core import DaemonConfig
+
+# Try to import client CLI to extend it
+try:
+    from gundog_client._cli import app
+
+    _HAS_CLIENT = True
+except ImportError:
+    # No client - create base app with only server commands
+    app = typer.Typer(
+        name="gundog",
+        help="Semantic retrieval for architectural knowledge",
+        no_args_is_help=True,
+    )
+    _HAS_CLIENT = False
+
 
 console = Console()
 
@@ -166,6 +183,8 @@ def index(
         console.print("[yellow]Warning:[/yellow] SSL verification disabled")
     configure_ssl(no_verify=no_verify_ssl)
 
+    from gundog._indexer import Indexer
+
     try:
         cfg = load_config(config, auto_bootstrap=True)
         indexer = Indexer(cfg)
@@ -188,94 +207,101 @@ def index(
         raise
 
 
-def _query_via_daemon(
-    query_text: str,
-    top_k: int,
-    index_name: str | None,
-) -> dict | None:
-    """Query via daemon HTTP API. Returns None if daemon not running."""
-    import httpx
+# Only add query command if client is NOT installed
+# (client provides its own query command)
+if not _HAS_CLIENT:
 
-    try:
-        config = DaemonConfig.load()
-    except FileNotFoundError:
-        return None
+    def _query_via_daemon(
+        query_text: str,
+        top_k: int,
+        index_name: str | None,
+    ) -> dict | None:
+        """Query via daemon HTTP API. Returns None if daemon not running."""
+        import httpx
 
-    url = f"http://{config.daemon.host}:{config.daemon.port}/api/query"
-    params = {"q": query_text, "k": top_k}
-    if index_name:
-        params["index"] = index_name
+        try:
+            config = DaemonConfig.load()
+        except FileNotFoundError:
+            return None
 
-    headers = {}
-    if config.daemon.auth.enabled and config.daemon.auth.api_key:
-        headers["X-API-Key"] = config.daemon.auth.api_key
+        url = f"http://{config.daemon.host}:{config.daemon.port}/api/query"
+        params = {"q": query_text, "k": top_k}
+        if index_name:
+            params["index"] = index_name
 
-    try:
-        with httpx.Client(timeout=120.0) as client:
-            response = client.get(url, params=params, headers=headers)
-            response.raise_for_status()
-            return response.json()
-    except httpx.ConnectError:
-        return None
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code == 401:
-            console.print("[red]Error:[/red] Authentication failed. Check your API key.")
-            raise typer.Exit(1) from None
-        raise
+        headers = {}
+        if config.daemon.auth.enabled and config.daemon.auth.api_key:
+            headers["X-API-Key"] = config.daemon.auth.api_key
 
+        try:
+            with httpx.Client(timeout=120.0) as client:
+                response = client.get(url, params=params, headers=headers)
+                response.raise_for_status()
+                return response.json()
+        except httpx.ConnectError:
+            return None
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 401:
+                console.print("[red]Error:[/red] Authentication failed. Check your API key.")
+                raise typer.Exit(1) from None
+            raise
 
-@app.command()
-def query(
-    query_text: Annotated[str, typer.Argument(help="Search query")],
-    index_name: Annotated[
-        str | None,
-        typer.Option(
-            "--index",
-            "-i",
-            help="Index name (registered with daemon)",
-        ),
-    ] = None,
-    top: Annotated[
-        int,
-        typer.Option(
-            "--top",
-            "-k",
-            help="Number of direct results",
-        ),
-    ] = 10,
-    output_format: Annotated[
-        OutputFormat,
-        typer.Option(
-            "--format",
-            "-f",
-            help="Output format",
-        ),
-    ] = OutputFormat.pretty,
-) -> None:
-    """Search for relevant files (via daemon)."""
-    # Try daemon first
-    result_data = _query_via_daemon(query_text, top, index_name)
+    @app.command()
+    def query(
+        query_text: Annotated[str, typer.Argument(help="Search query")],
+        index_name: Annotated[
+            str | None,
+            typer.Option(
+                "--index",
+                "-i",
+                help="Index name (registered with daemon)",
+            ),
+        ] = None,
+        top: Annotated[
+            int,
+            typer.Option(
+                "--top",
+                "-k",
+                help="Number of direct results",
+            ),
+        ] = 10,
+        output_format: Annotated[
+            OutputFormat,
+            typer.Option(
+                "--format",
+                "-f",
+                help="Output format",
+            ),
+        ] = OutputFormat.pretty,
+    ) -> None:
+        """Search for relevant files (via daemon)."""
+        # Try daemon first
+        result_data = _query_via_daemon(query_text, top, index_name)
 
-    if result_data is None:
-        console.print("[red]Error:[/red] Daemon is not running.")
-        console.print("Start it with: [bold]gundog daemon start[/bold]")
-        raise typer.Exit(1)
+        if result_data is None:
+            console.print("[red]Error:[/red] Daemon is not running.")
+            console.print("Start it with: [bold]gundog daemon start[/bold]")
+            raise typer.Exit(1)
 
-    # Use dict directly with bracket notation
-    query = result_data["query"]
-    direct = result_data["direct"]
-    related = result_data["related"]
+        # Use dict directly with bracket notation
+        query_str = result_data["query"]
+        direct = result_data["direct"]
+        related = result_data["related"]
 
-    if output_format == OutputFormat.json:
-        console.print_json(json.dumps(result_data))
+        if output_format == OutputFormat.json:
+            console.print_json(json.dumps(result_data))
 
-    elif output_format == OutputFormat.paths:
-        for item in direct:
-            console.print(item["path"])
-        for item in related:
-            console.print(item["path"])
+        elif output_format == OutputFormat.paths:
+            for item in direct:
+                console.print(item["path"])
+            for item in related:
+                console.print(item["path"])
 
-    else:  # pretty
+        else:  # pretty
+            _print_pretty_results(query_str, direct, related)
+
+    def _print_pretty_results(query_str: str, direct: list, related: list) -> None:
+        """Print results in pretty format."""
         console.print()
 
         # Build direct matches table
@@ -360,7 +386,7 @@ def query(
         # Wrap in panel
         panel = Panel(
             layout,
-            title=f"[bold white]{query}[/bold white]",
+            title=f"[bold white]{query_str}[/bold white]",
             border_style="blue",
             padding=(1, 2),
         )
@@ -658,6 +684,21 @@ def daemon_list() -> None:
         table.add_row(name, idx_path, is_default)
 
     console.print(table)
+
+
+@daemon_app.command("reload")
+def daemon_reload() -> None:
+    """Reload daemon configuration."""
+    pid = _get_pid()
+    if not pid:
+        console.print("[yellow]Daemon is not running[/yellow]")
+        raise typer.Exit(1)
+
+    if _notify_daemon_reload():
+        console.print("[green]Daemon reloaded config[/green]")
+    else:
+        console.print("[red]Error:[/red] Could not notify daemon")
+        raise typer.Exit(1)
 
 
 def main() -> None:
