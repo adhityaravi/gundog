@@ -188,12 +188,14 @@ class TestWebSocketEndpoint:
             client = TestClient(app)
 
             with client.websocket_connect("/ws") as websocket:
-                websocket.send_json({
-                    "type": "query",
-                    "id": "test-123",
-                    "query": "test query",
-                    "top_k": 5,
-                })
+                websocket.send_json(
+                    {
+                        "type": "query",
+                        "id": "test-123",
+                        "query": "test query",
+                        "top_k": 5,
+                    }
+                )
                 response = websocket.receive_json()
 
                 assert response["type"] == "query_result"
@@ -226,11 +228,13 @@ class TestWebSocketEndpoint:
 
             with client.websocket_connect("/ws") as websocket:
                 request_id = "unique-request-id-12345"
-                websocket.send_json({
-                    "type": "query",
-                    "id": request_id,
-                    "query": "authentication",
-                })
+                websocket.send_json(
+                    {
+                        "type": "query",
+                        "id": request_id,
+                        "query": "authentication",
+                    }
+                )
                 response = websocket.receive_json()
 
                 assert response["id"] == request_id

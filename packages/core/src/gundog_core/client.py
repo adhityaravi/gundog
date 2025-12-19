@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 import websockets
-from websockets.client import WebSocketClientProtocol
+from websockets import ClientConnection
 
 from gundog_core.config import DaemonAddress
 from gundog_core.errors import ConnectionError, QueryError
@@ -72,7 +72,7 @@ class DaemonClient:
         self._auto_reconnect = auto_reconnect
         self._max_reconnect_delay = max_reconnect_delay
         self._http: httpx.AsyncClient | None = None
-        self._ws: WebSocketClientProtocol | None = None
+        self._ws: ClientConnection | None = None
         self._connected = False
 
     async def __aenter__(self) -> DaemonClient:
@@ -115,9 +115,7 @@ class DaemonClient:
         except httpx.HTTPError as e:
             await self._http.aclose()
             self._http = None
-            raise ConnectionError(
-                f"Cannot reach daemon at {self._address.http_url}: {e}"
-            ) from e
+            raise ConnectionError(f"Cannot reach daemon at {self._address.http_url}: {e}") from e
 
     async def disconnect(self) -> None:
         """Close all connections."""
@@ -246,7 +244,7 @@ class DaemonClient:
     # -------------------------------------------------------------------------
 
     @asynccontextmanager
-    async def websocket(self) -> AsyncIterator[WebSocketClientProtocol]:
+    async def websocket(self) -> AsyncIterator[ClientConnection]:
         """Context manager for WebSocket connection.
 
         Usage:

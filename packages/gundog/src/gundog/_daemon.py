@@ -325,7 +325,7 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
                     "config": {},
                     "sample_paths": [],
                 }
-                for name, path in manager.config.indexes.items()
+                for name, _ in manager.config.indexes.items()
             ],
             "current": manager.active_index,
         }
@@ -372,7 +372,9 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
                     await _handle_ws_switch_index(websocket, message, request_id)
                 else:
                     await websocket.send_json(
-                        _build_error(request_id, "INVALID_REQUEST", f"Unknown message type: {msg_type}")
+                        _build_error(
+                            request_id, "INVALID_REQUEST", f"Unknown message type: {msg_type}"
+                        )
                     )
 
         except WebSocketDisconnect:
@@ -402,18 +404,12 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
             result = engine.query(query_text, top_k=top_k)
             timing_ms = (time.perf_counter() - start_time) * 1000
 
-            await websocket.send_json(
-                _build_query_result(request_id, result, timing_ms)
-            )
+            await websocket.send_json(_build_query_result(request_id, result, timing_ms))
         except ValueError as e:
-            await websocket.send_json(
-                _build_error(request_id, "INDEX_NOT_FOUND", str(e))
-            )
+            await websocket.send_json(_build_error(request_id, "INDEX_NOT_FOUND", str(e)))
         except Exception as e:
             logger.exception(f"Query failed: {e}")
-            await websocket.send_json(
-                _build_error(request_id, "QUERY_FAILED", str(e))
-            )
+            await websocket.send_json(_build_error(request_id, "QUERY_FAILED", str(e)))
 
     async def _handle_ws_switch_index(
         websocket: WebSocket,
@@ -437,17 +433,17 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
 
         try:
             manager.load_index(index_name)
-            await websocket.send_json({
-                "type": "index_switched",
-                "index": index_name,
-                "files": 0,  # TODO: get actual count
-                "sample_paths": [],
-            })
+            await websocket.send_json(
+                {
+                    "type": "index_switched",
+                    "index": index_name,
+                    "files": 0,  # TODO: get actual count
+                    "sample_paths": [],
+                }
+            )
         except Exception as e:
             logger.exception(f"Failed to switch index: {e}")
-            await websocket.send_json(
-                _build_error(request_id, "INDEX_NOT_FOUND", str(e))
-            )
+            await websocket.send_json(_build_error(request_id, "INDEX_NOT_FOUND", str(e)))
 
     # Serve UI if enabled
     if config.daemon.serve_ui:

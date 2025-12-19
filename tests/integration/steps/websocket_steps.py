@@ -32,12 +32,14 @@ def send_ws_query(test_context, query_text):
     """Send a query message via WebSocket."""
     client = test_context["test_client"]
     with client.websocket_connect("/ws") as websocket:
-        websocket.send_json({
-            "type": "query",
-            "id": "test-request-id",
-            "query": query_text,
-            "top_k": 10,
-        })
+        websocket.send_json(
+            {
+                "type": "query",
+                "id": "test-request-id",
+                "query": query_text,
+                "top_k": 10,
+            }
+        )
         test_context["ws_response"] = websocket.receive_json()
 
 
@@ -55,10 +57,12 @@ def send_ws_switch_index(test_context):
     """Send a switch_index message via WebSocket."""
     client = test_context["test_client"]
     with client.websocket_connect("/ws") as websocket:
-        websocket.send_json({
-            "type": "switch_index",
-            "index": "test-index",
-        })
+        websocket.send_json(
+            {
+                "type": "switch_index",
+                "index": "test-index",
+            }
+        )
         test_context["ws_response"] = websocket.receive_json()
 
 
@@ -67,10 +71,12 @@ def send_ws_unknown_type(test_context, msg_type):
     """Send a message with unknown type via WebSocket."""
     client = test_context["test_client"]
     with client.websocket_connect("/ws") as websocket:
-        websocket.send_json({
-            "type": msg_type,
-            "id": "test-request-id",
-        })
+        websocket.send_json(
+            {
+                "type": msg_type,
+                "id": "test-request-id",
+            }
+        )
         test_context["ws_response"] = websocket.receive_json()
 
 
@@ -79,11 +85,13 @@ def send_ws_empty_query(test_context):
     """Send a query with empty text via WebSocket."""
     client = test_context["test_client"]
     with client.websocket_connect("/ws") as websocket:
-        websocket.send_json({
-            "type": "query",
-            "id": "test-request-id",
-            "query": "",
-        })
+        websocket.send_json(
+            {
+                "type": "query",
+                "id": "test-request-id",
+                "query": "",
+            }
+        )
         test_context["ws_response"] = websocket.receive_json()
 
 

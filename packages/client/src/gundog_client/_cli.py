@@ -37,7 +37,9 @@ def query(
     format_: Annotated[
         str, typer.Option("--format", "-f", help="Output format: pretty, json, paths")
     ] = "pretty",
-    no_expand: Annotated[bool, typer.Option("--no-expand", help="Disable graph expansion")] = False,
+    no_expand: Annotated[
+        bool, typer.Option("--no-expand", help="Disable graph expansion")
+    ] = False,
 ) -> None:
     """Execute a semantic search query against the daemon."""
     config = ClientConfig.load()
