@@ -25,9 +25,31 @@ from rich.tree import Tree
 
 from gundog._config import GundogConfig
 from gundog._ssl import configure_ssl, get_ssl_error_help, is_ssl_error
+from gundog._version import __version__
 
 # Import config from core
 from gundog_core import DaemonConfig
+
+console = Console()
+
+
+def _version_callback(value: bool) -> None:
+    """Show version info and exit."""
+    if value:
+        console.print("[bold]gundog[/bold] - A fast semantic search and retrieval engine")
+        console.print()
+        console.print(f"  [green]●[/green] daemon  {__version__}")
+
+        # Check if client is installed
+        try:
+            from gundog_client._version import __version__ as cv
+
+            console.print(f"  [green]●[/green] client  {cv}")
+        except ImportError:
+            console.print("  [dim]○[/dim] client  [dim]not installed[/dim]")
+
+        raise typer.Exit()
+
 
 # Try to import client CLI to extend it
 try:
@@ -38,13 +60,27 @@ except ImportError:
     # No client - create base app with only server commands
     app = typer.Typer(
         name="gundog",
-        help="Semantic retrieval for architectural knowledge",
+        help="A fast semantic search and retrieval engine",
         no_args_is_help=True,
     )
     _HAS_CLIENT = False
 
+    # Add version callback for daemon-only installs
+    @app.callback()
+    def _app_callback(
+        version: Annotated[
+            bool,
+            typer.Option(
+                "--version",
+                "-v",
+                callback=_version_callback,
+                is_eager=True,
+                help="Show version and installed packages",
+            ),
+        ] = False,
+    ) -> None:
+        """A fast semantic search and retrieval engine."""
 
-console = Console()
 
 DEFAULT_CONFIG_PATH = Path(".gundog/config.yaml")
 
