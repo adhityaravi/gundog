@@ -8,6 +8,8 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
+import subprocess
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -27,6 +29,7 @@ from gundog_client._tui._constants import (
     SearchConfig,
 )
 from gundog_client._tui._enums import ConnectionState, PreviewMode
+from gundog_client._tui._help import HELP_TEXT
 from gundog_client._tui._modals import InputModal
 from gundog_client._tui._theme import (
     ConnectionColors,
@@ -176,7 +179,7 @@ class GundogApp(App):
         addr = f"{self._address.host}:{self._address.port}"
         status = self._format_connection_status()
         idx_info = self._format_index_info()
-        return f"{idx_info}{status}  [{DraculaColors.COMMENT.value}]{addr}[/]"
+        return f"{status}  [{DraculaColors.COMMENT.value}]{addr}[/]  [{DraculaColors.SELECTION.value}]|[/]  {idx_info}"
 
     def _format_connection_status(self) -> str:
         """Format the connection status indicator."""
@@ -198,8 +201,7 @@ class GundogApp(App):
             return ""
         return (
             f"[{DraculaColors.CYAN.value}]{self._active_index}[/] "
-            f"[{DraculaColors.COMMENT.value}]({idx.file_count})[/]  "
-            f"[{DraculaColors.SELECTION.value}]|[/]  "
+            f"[{DraculaColors.COMMENT.value}]({idx.file_count})[/]"
         )
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -765,9 +767,6 @@ class GundogApp(App):
 
     def _open_in_editor(self, hit: SearchHit | RelatedHit) -> None:
         """Open file in external editor."""
-        import os
-        import subprocess
-
         if not self._local_path:
             self.notify("Set local path first (L)", severity="warning")
             return
@@ -803,27 +802,7 @@ class GundogApp(App):
         container.remove_children()
 
         header.update(f"[{DraculaColors.GREEN.value}]KEYBINDINGS[/]")
-
-        help_text = f"""[{DraculaColors.PINK.value} bold]NAVIGATION[/]
-[{DraculaColors.CYAN.value}]j / [/]        Next result
-[{DraculaColors.CYAN.value}]k / [/]        Previous result
-[{DraculaColors.CYAN.value}]g / G[/]        First / Last result
-[{DraculaColors.CYAN.value}]Enter[/]        Open in editor
-
-[{DraculaColors.PINK.value} bold]SEARCH[/]
-[{DraculaColors.CYAN.value}]/[/]            Focus search
-[{DraculaColors.CYAN.value}]Esc[/]          Back to results
-
-[{DraculaColors.PINK.value} bold]MANAGEMENT[/]
-[{DraculaColors.CYAN.value}]i[/]            Switch index
-[{DraculaColors.CYAN.value}]L[/]            Set local path
-[{DraculaColors.CYAN.value}]R[/]            Force reconnect
-[{DraculaColors.CYAN.value}]?[/]            Toggle help
-[{DraculaColors.RED.value}]q[/]            Quit
-
-[{DraculaColors.COMMENT.value}]Press ? to close[/]"""
-
-        container.mount(Static(help_text))
+        container.mount(Static(HELP_TEXT))
 
     def action_force_reconnect(self) -> None:
         """Force reconnection to daemon."""
