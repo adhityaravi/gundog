@@ -13,20 +13,26 @@ on:
         required: false
         default: true
         type: boolean
+      test_pypi:
+        description: Publish to Test PyPI
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   quality:
     name: Quality
     uses: ./.github/workflows/_quality_checks.yaml
 
-  release:
-    name: Release to PyPI
+  build:
+    name: Build & Version
     needs: quality
     runs-on: ubuntu-latest
-    concurrency: release
     permissions:
-      id-token: write
       contents: write
+    outputs:
+      new_version: ${{ steps.version.outputs.new }}
+      version_number: ${{ steps.version.outputs.number }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -61,42 +67,148 @@ jobs:
           fi
 
       - name: Bump version, commit, and tag
-        if: steps.version.outputs.new == 'true' && inputs.dry_run == false
+        if: ${{ steps.version.outputs.new == 'true' && !inputs.dry_run }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: uv run semantic-release version --no-push
 
-      - name: Build package
+      - name: Build packages
         if: steps.version.outputs.new == 'true'
-        run: uv build
+        run: uv build --all-packages
 
-      - name: Publish to PyPI
-        if: steps.version.outputs.new == 'true' && inputs.dry_run == false
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Upload dist artifacts
+        if: steps.version.outputs.new == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
 
       - name: Push to GitHub
-        if: steps.version.outputs.new == 'true' && inputs.dry_run == false
+        if: ${{ steps.version.outputs.new == 'true' && !inputs.dry_run && !inputs.test_pypi }}
         run: git push origin main --follow-tags
 
+  publish-core:
+    name: Publish gundog-core
+    needs: build
+    if: ${{ needs.build.outputs.new_version == 'true' && !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    environment: pypi-core
+    permissions:
+      id-token: write
+    steps:
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Filter core package
+        run: |
+          mkdir -p upload
+          cp dist/gundog_core-* upload/
+
+      - name: Publish to Test PyPI
+        if: ${{ inputs.test_pypi }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: upload/
+          repository-url: https://test.pypi.org/legacy/
+
+      - name: Publish to PyPI
+        if: ${{ !inputs.test_pypi }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: upload/
+
+  publish-client:
+    name: Publish gundog-client
+    needs: [build, publish-core]
+    if: ${{ needs.build.outputs.new_version == 'true' && !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    environment: pypi-client
+    permissions:
+      id-token: write
+    steps:
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Filter client package
+        run: |
+          mkdir -p upload
+          cp dist/gundog_client-* upload/
+
+      - name: Publish to Test PyPI
+        if: ${{ inputs.test_pypi }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: upload/
+          repository-url: https://test.pypi.org/legacy/
+
+      - name: Publish to PyPI
+        if: ${{ !inputs.test_pypi }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: upload/
+
+  publish-gundog:
+    name: Publish gundog
+    needs: [build, publish-core]
+    if: ${{ needs.build.outputs.new_version == 'true' && !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    environment: pypi-gundog
+    permissions:
+      id-token: write
+    steps:
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Filter gundog package
+        run: |
+          mkdir -p upload
+          cp dist/gundog-* upload/
+
+      - name: Publish to Test PyPI
+        if: ${{ inputs.test_pypi }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: upload/
+          repository-url: https://test.pypi.org/legacy/
+
+      - name: Publish to PyPI
+        if: ${{ !inputs.test_pypi }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: upload/
+
+  release:
+    name: GitHub Release
+    needs: [build, publish-core, publish-client, publish-gundog]
+    if: ${{ needs.build.outputs.new_version == 'true' && !inputs.dry_run && !inputs.test_pypi }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
       - name: Create GitHub release
-        if: steps.version.outputs.new == 'true' && inputs.dry_run == false
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "v${{ steps.version.outputs.number }}" \
-            --title "v${{ steps.version.outputs.number }}" \
+          gh release create "v${{ needs.build.outputs.version_number }}" \
+            --title "v${{ needs.build.outputs.version_number }}" \
             --generate-notes \
             ${{ inputs.pre_release && '--prerelease' || '' }} \
             dist/*
-
-      - name: Summary
-        run: |
-          if [ "${{ steps.version.outputs.new }}" == "true" ]; then
-            if [ "${{ inputs.dry_run }}" == "true" ]; then
-              echo "Dry run: would release v${{ steps.version.outputs.number }}"
-            else
-              echo "Released v${{ steps.version.outputs.number }}"
-            fi
-          else
-            echo "No release needed"
-          fi

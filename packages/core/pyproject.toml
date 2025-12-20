@@ -1,0 +1,32 @@
+[project]
+name = "gundog-core"
+version = "0.3.1"
+description = "Shared types, protocols, and client for gundog semantic search"
+readme = "../../README.md"
+license = "GPL-3.0-or-later"
+requires-python = ">=3.12"
+authors = [{ name = "ivdi" }]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+dependencies = [
+    # HTTP client
+    "httpx>=0.27.0",
+    # WebSocket client
+    "websockets>=12.0",
+    # Config parsing
+    "pyyaml>=6.0",
+]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gundog_core"]

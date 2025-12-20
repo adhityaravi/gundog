@@ -22,6 +22,8 @@ pytest_plugins = [
     "tests.integration.steps.storage_steps",
     "tests.integration.steps.feature_steps",
     "tests.integration.steps.ssl_steps",
+    "tests.integration.steps.websocket_steps",
+    "tests.integration.steps.tui_steps",
 ]
 
 

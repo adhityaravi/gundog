@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{TITLE}}</title>
+<script src="https://unpkg.com/vis-network@9/standalone/umd/vis-network.min.js"></script>
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-secondary: #161b22;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text-secondary: #8b949e;
+  --accent: #58a6ff;
+  --green: #3fb950;
+  --purple: #a371f7;
+  --orange: #f78166;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+}
+header {
+  padding: 1rem 1.5rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+header h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+.search-form {
+  flex: 1;
+  max-width: 600px;
+  display: flex;
+  gap: 0.5rem;
+}
+input[type="search"] {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  outline: none;
+}
+input[type="search"]:focus { border-color: var(--accent); }
+select {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  outline: none;
+  cursor: pointer;
+  min-width: 120px;
+}
+select:focus { border-color: var(--accent); }
+select:hover { border-color: var(--text-secondary); }
+button {
+  padding: 0.5rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  background: #238636;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+}
+button:hover { background: #2ea043; }
+button:disabled { background: var(--border); cursor: wait; }
+main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.sidebar {
+  width: 380px;
+  flex-shrink: 0;
+  padding: 1rem;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+}
+.section-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin: 1rem 0 0.5rem;
+}
+.section-title:first-child { margin-top: 0; }
+.result {
+  display: block;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  text-decoration: none;
+  transition: border-color 0.15s;
+}
+.result:hover { border-color: var(--accent); }
+.result.no-link { cursor: default; }
+.result.no-link:hover { border-color: var(--border); }
+.result.no-link .result-name { color: var(--text); }
+.result-name {
+  font-weight: 500;
+  color: var(--accent);
+  margin-bottom: 0.25rem;
+}
+.result-meta {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 0.75rem;
+}
+.result-meta .score { color: var(--green); }
+.result-meta .type { color: var(--purple); }
+.result-meta .type.code { color: var(--green); }
+#graph {
+  background: var(--bg);
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
+.powered-by {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+  z-index: 100;
+}
+.powered-by:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>{{TITLE}}</h1>
+  <form class="search-form" onsubmit="search(event)">
+    <select id="index-select" title="Select index"></select>
+    <input type="search" id="q" placeholder="Ask about architecture..." autofocus>
+    <button type="submit" id="btn">Search</button>
+  </form>
+</header>
+<a class="powered-by" href="https://github.com/adhityaravi/gundog" target="_blank" rel="noopener">powered by gundog</a>
+<main>
+  <aside class="sidebar" id="sidebar">
+    <p class="empty">Enter a query to search</p>
+  </aside>
+  <div id="graph"></div>
+</main>
+<script>
+let network = null;
+
+// Load available indexes on page load
+async function loadIndexes() {
+  const select = document.getElementById("index-select");
+  try {
+    const res = await fetch("/api/indexes");
+    const data = await res.json();
+    select.innerHTML = "";
+
+    const indexes = data.indexes || [];
+    if (indexes.length === 0) {
+      select.innerHTML = '<option value="">No indexes</option>';
+      select.style.display = "none";
+      return;
+    }
+
+    indexes.forEach(idx => {
+      const opt = document.createElement("option");
+      opt.value = idx.name;
+      opt.textContent = idx.name;
+      if (idx.is_active || idx.name === data.default) opt.selected = true;
+      select.appendChild(opt);
+    });
+
+    // Hide dropdown if only one index
+    select.style.display = indexes.length > 1 ? "block" : "none";
+  } catch (err) {
+    select.style.display = "none";
+  }
+}
+
+async function search(e) {
+  e.preventDefault();
+  const q = document.getElementById("q").value.trim();
+  if (!q) return;
+
+  const btn = document.getElementById("btn");
+  btn.disabled = true;
+
+  try {
+    const index = document.getElementById("index-select").value;
+    let url = "/api/query?q=" + encodeURIComponent(q);
+    if (index) url += "&index=" + encodeURIComponent(index);
+
+    const res = await fetch(url);
+    const data = await res.json();
+    render(data);
+  } catch (err) {
+    document.getElementById("sidebar").innerHTML = `<p class="empty">Error: ${err.message}</p>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// Load indexes on page load
+loadIndexes();
+
+function render(data) {
+  renderSidebar(data);
+  renderGraph(data);
+}
+
+function renderSidebar(data) {
+  let html = "";
+
+  if (data.direct.length) {
+    html += `<div class="section-title">Direct Matches (${data.direct.length})</div>`;
+    data.direct.forEach(r => {
+      const typeClass = r.type === "code" ? "code" : "";
+      const hasUrl = r.url && r.url !== "";
+      if (hasUrl) {
+        html += `
+          <a class="result" href="${r.url}" target="_blank" rel="noopener">
+            <div class="result-name">${r.name}</div>
+            <div class="result-meta">
+              <span class="score">${Math.round(r.score * 100)}%</span>
+              <span class="type ${typeClass}">${r.type}</span>
+              ${r.lines ? `<span>L${r.lines}</span>` : ""}
+            </div>
+          </a>`;
+      } else {
+        html += `
+          <div class="result no-link" title="${r.path}">
+            <div class="result-name">${r.name}</div>
+            <div class="result-meta">
+              <span class="score">${Math.round(r.score * 100)}%</span>
+              <span class="type ${typeClass}">${r.type}</span>
+              ${r.lines ? `<span>L${r.lines}</span>` : ""}
+            </div>
+          </div>`;
+      }
+    });
+  }
+
+  if (data.related.length) {
+    html += `<div class="section-title">Related (${data.related.length})</div>`;
+    data.related.slice(0, 20).forEach(r => {
+      const typeClass = r.type === "code" ? "code" : "";
+      const hasUrl = r.url && r.url !== "";
+      if (hasUrl) {
+        html += `
+          <a class="result" href="${r.url}" target="_blank" rel="noopener">
+            <div class="result-name">${r.name}</div>
+            <div class="result-meta">
+              <span class="score">${Math.round(r.weight * 100)}%</span>
+              <span class="type ${typeClass}">${r.type}</span>
+              <span>via ${r.via_name}</span>
+            </div>
+          </a>`;
+      } else {
+        html += `
+          <div class="result no-link" title="${r.path}">
+            <div class="result-name">${r.name}</div>
+            <div class="result-meta">
+              <span class="score">${Math.round(r.weight * 100)}%</span>
+              <span class="type ${typeClass}">${r.type}</span>
+              <span>via ${r.via_name}</span>
+            </div>
+          </div>`;
+      }
+    });
+  }
+
+  document.getElementById("sidebar").innerHTML = html || `<p class="empty">No results</p>`;
+}
+
+function renderGraph(data) {
+  const nodes = [];
+  const edges = [];
+  const ids = new Set();
+
+  // Query node
+  nodes.push({
+    id: "q",
+    label: "",
+    title: data.query,
+    color: "#f78166",
+    shape: "diamond",
+    size: 20
+  });
+
+  // Direct matches
+  data.direct.forEach(r => {
+    const color = r.type === "code" ? "#3fb950" : "#a371f7";
+    const title = `${r.name}\n${Math.round(r.score * 100)}%${r.lines ? `\nL${r.lines}` : ""}`;
+    nodes.push({
+      id: r.path,
+      label: "",
+      title,
+      color,
+      shape: "dot",
+      size: 14,
+      url: r.url
+    });
+    ids.add(r.path);
+    edges.push({ from: "q", to: r.path, color: { color: "#58a6ff", opacity: 0.6 }, width: 2 });
+  });
+
+  // Related
+  data.related.slice(0, 25).forEach(r => {
+    if (!ids.has(r.path)) {
+      const title = `${r.name}\n${Math.round(r.weight * 100)}%\nvia ${r.via_name}`;
+      nodes.push({
+        id: r.path,
+        label: "",
+        title,
+        color: "#8b949e",
+        shape: "dot",
+        size: 8,
+        url: r.url
+      });
+      ids.add(r.path);
+    }
+    if (ids.has(r.via)) {
+      edges.push({ from: r.via, to: r.path, color: { color: "#30363d", opacity: 0.4 }, width: 1 });
+    }
+  });
+
+  if (network) network.destroy();
+
+  network = new vis.Network(
+    document.getElementById("graph"),
+    { nodes, edges },
+    {
+      physics: {
+        barnesHut: { gravitationalConstant: -2000, springLength: 100, damping: 0.3 }
+      },
+      nodes: {
+        borderWidth: 0,
+        shadow: { enabled: true, color: "rgba(0,0,0,0.3)", x: 2, y: 2, size: 5 }
+      },
+      edges: {
+        smooth: { type: "continuous" }
+      },
+      interaction: {
+        hover: true,
+        tooltipDelay: 100
+      }
+    }
+  );
+
+  network.on("click", p => {
+    if (p.nodes.length && p.nodes[0] !== "q") {
+      const node = nodes.find(n => n.id === p.nodes[0]);
+      if (node?.url) window.open(node.url, "_blank");
+    }
+  });
+}
+</script>
+</body>
+</html>
