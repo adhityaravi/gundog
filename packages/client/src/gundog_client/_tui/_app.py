@@ -32,8 +32,9 @@ from gundog_client._tui._enums import ConnectionState, PreviewMode
 from gundog_client._tui._help import HELP_TEXT
 from gundog_client._tui._modals import InputModal
 from gundog_client._tui._theme import (
+    THEME,
+    Colors,
     ConnectionColors,
-    DraculaColors,
     FileTypeColors,
     GraphColors,
     ScoreColors,
@@ -99,6 +100,8 @@ class GundogApp(App):
         config: ClientConfig | None = None,
     ) -> None:
         super().__init__()
+        self.register_theme(THEME)
+        self.theme = THEME.name
         self._address = address or DaemonAddress()
         self._config = config or ClientConfig.load()
         self._client: DaemonClient | None = None
@@ -126,24 +129,22 @@ class GundogApp(App):
 
     def compose(self) -> ComposeResult:
         """Compose the UI."""
-        yield Static(f"[{DraculaColors.PURPLE.value} bold]ｇｕｎｄｏｇ[/]", id="title-bar")  # noqa: RUF001
+        yield Static(f"[{Colors.PRIMARY.value} bold]ｇｕｎｄｏｇ[/]", id="title-bar")  # noqa: RUF001
 
         with Horizontal(id="search-container"):
-            yield Static(f"[{DraculaColors.GREEN.value}]>[/]", id="search-icon")
+            yield Static(f"[{Colors.SUCCESS.value}]>[/]", id="search-icon")
             yield Input(placeholder="search...", id="search-input")
 
         with Horizontal(id="main-content"):
             with Vertical(id="results-pane"):
                 with Vertical(id="direct-section"):
-                    yield Static(f"[{DraculaColors.PINK.value} bold]DIRECT[/]", id="direct-header")
+                    yield Static(f"[{Colors.SECONDARY.value} bold]DIRECT[/]", id="direct-header")
                     yield VerticalScroll(
                         Static("Enter a query to search", classes="empty-results"),
                         id="direct-list",
                     )
                 with Vertical(id="related-section"):
-                    yield Static(
-                        f"[{DraculaColors.CYAN.value} bold]RELATED[/]", id="related-header"
-                    )
+                    yield Static(f"[{Colors.ACCENT.value} bold]RELATED[/]", id="related-header")
                     yield VerticalScroll(
                         Static("Graph-expanded results", classes="empty-results"),
                         id="related-list",
@@ -157,19 +158,19 @@ class GundogApp(App):
                 )
 
             with Vertical(id="graph-pane"):
-                yield Static(f"[{DraculaColors.COMMENT.value}]Graph[/]", id="graph-header")
+                yield Static(f"[{Colors.MUTED.value}]Graph[/]", id="graph-header")
                 with VerticalScroll(id="graph-scroll"):  # noqa: SIM117
                     with Center():
                         yield Static("", id="graph-content")
 
         with Horizontal(id="footer-bar"):
             yield Static(
-                f"[{DraculaColors.CYAN.value}]j/k[/] navigate  "
-                f"[{DraculaColors.CYAN.value}]Enter[/] open  "
-                f"[{DraculaColors.CYAN.value}]/[/] search  "
-                f"[{DraculaColors.CYAN.value}]i[/] index  "
-                f"[{DraculaColors.CYAN.value}]?[/] help  "
-                f"[{DraculaColors.RED.value}]q[/] quit",
+                f"[{Colors.ACCENT.value}]j/k[/] navigate  "
+                f"[{Colors.ACCENT.value}]Enter[/] open  "
+                f"[{Colors.ACCENT.value}]/[/] search  "
+                f"[{Colors.ACCENT.value}]i[/] index  "
+                f"[{Colors.ACCENT.value}]?[/] help  "
+                f"[{Colors.ERROR.value}]q[/] quit",
                 id="help-hints",
             )
             yield Static(self._format_footer_status(), id="footer-status")
@@ -179,7 +180,7 @@ class GundogApp(App):
         addr = f"{self._address.host}:{self._address.port}"
         status = self._format_connection_status()
         idx_info = self._format_index_info()
-        return f"{status}  [{DraculaColors.COMMENT.value}]{addr}[/]  [{DraculaColors.SELECTION.value}]|[/]  {idx_info}"
+        return f"{idx_info}{status}  [{Colors.MUTED.value}]{addr}[/]"
 
     def _format_connection_status(self) -> str:
         """Format the connection status indicator."""
@@ -200,8 +201,9 @@ class GundogApp(App):
         if not idx:
             return ""
         return (
-            f"[{DraculaColors.CYAN.value}]{self._active_index}[/] "
-            f"[{DraculaColors.COMMENT.value}]({idx.file_count})[/]"
+            f"[{Colors.ACCENT.value}]{self._active_index}[/] "
+            f"[{Colors.MUTED.value}]({idx.file_count})[/]  "
+            f"[{Colors.SURFACE.value}]|[/]  "
         )
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -415,13 +417,13 @@ class GundogApp(App):
     def _render_direct_results(self, container: VerticalScroll, header: Static) -> None:
         """Render direct match results."""
         if not self._results:
-            header.update(f"[{DraculaColors.PINK.value} bold]DIRECT[/]")
+            header.update(f"[{Colors.SECONDARY.value} bold]DIRECT[/]")
             container.mount(Static("No direct matches", classes="empty-results"))
             return
 
         header.update(
-            f"[{DraculaColors.PINK.value} bold]DIRECT[/] "
-            f"[{DraculaColors.COMMENT.value}]({len(self._results)})[/]"
+            f"[{Colors.SECONDARY.value} bold]DIRECT[/] "
+            f"[{Colors.MUTED.value}]({len(self._results)})[/]"
         )
 
         for i, hit in enumerate(self._results):
@@ -436,13 +438,13 @@ class GundogApp(App):
     def _render_related_results(self, container: VerticalScroll, header: Static) -> None:
         """Render related/graph-expanded results."""
         if not self._related_results:
-            header.update(f"[{DraculaColors.CYAN.value} bold]RELATED[/]")
+            header.update(f"[{Colors.ACCENT.value} bold]RELATED[/]")
             container.mount(Static("No related matches", classes="empty-results"))
             return
 
         header.update(
-            f"[{DraculaColors.CYAN.value} bold]RELATED[/] "
-            f"[{DraculaColors.COMMENT.value}]({len(self._related_results)})[/]"
+            f"[{Colors.ACCENT.value} bold]RELATED[/] "
+            f"[{Colors.MUTED.value}]({len(self._related_results)})[/]"
         )
 
         for i, hit in enumerate(self._related_results):
@@ -464,11 +466,11 @@ class GundogApp(App):
 
         lines_str = ""
         if hit.lines:
-            lines_str = f"[{DraculaColors.PURPLE.value}]L{hit.lines[0]}-{hit.lines[1]}[/]"
+            lines_str = f"[{Colors.PRIMARY.value}]L{hit.lines[0]}-{hit.lines[1]}[/]"
 
         return (
-            f"[bold {DraculaColors.FOREGROUND.value}]{filename}[/]\n"
-            f"[{DraculaColors.COMMENT.value}]{dirname}[/]\n"
+            f"[bold {Colors.FOREGROUND.value}]{filename}[/]\n"
+            f"[{Colors.MUTED.value}]{dirname}[/]\n"
             f"[bold {score_color}]{score_val}%[/] [{type_color}]{hit.type}[/] {lines_str}"
         )
 
@@ -482,10 +484,10 @@ class GundogApp(App):
         weight_val = int(hit.edge_weight * 100)
 
         return (
-            f"[bold {DraculaColors.FOREGROUND.value}]{filename}[/]\n"
-            f"[{DraculaColors.COMMENT.value}]{dirname}[/]\n"
+            f"[bold {Colors.FOREGROUND.value}]{filename}[/]\n"
+            f"[{Colors.MUTED.value}]{dirname}[/]\n"
             f"[bold {weight_color}]{weight_val}%[/] [{type_color}]{hit.type}[/] "
-            f"[{DraculaColors.COMMENT.value}]via {via_file}[/]"
+            f"[{Colors.MUTED.value}]via {via_file}[/]"
         )
 
     def watch_selected_index(self, index: int) -> None:
@@ -561,16 +563,16 @@ class GundogApp(App):
         if not self._local_path:
             container.mount(
                 Static(
-                    f"[{DraculaColors.COMMENT.value}]Set local path with[/] "
-                    f"[{DraculaColors.CYAN.value}]L[/] "
-                    f"[{DraculaColors.COMMENT.value}]to preview files[/]"
+                    f"[{Colors.MUTED.value}]Set local path with[/] "
+                    f"[{Colors.ACCENT.value}]L[/] "
+                    f"[{Colors.MUTED.value}]to preview files[/]"
                 )
             )
             return
 
         full_path = Path(self._local_path) / hit.path
         if not full_path.exists():
-            container.mount(Static(f"[{DraculaColors.RED.value}]File not found:[/] {full_path}"))
+            container.mount(Static(f"[{Colors.ERROR.value}]File not found:[/] {full_path}"))
             return
 
         try:
@@ -594,12 +596,12 @@ class GundogApp(App):
                 theme="dracula",
                 line_numbers=True,
                 start_line=start_line,
-                background_color=DraculaColors.BACKGROUND.value,
+                background_color=Colors.BACKGROUND.value,
             )
             container.mount(Static(syntax))
         except Exception as e:
             logger.error("Error loading preview: %s", e)
-            container.mount(Static(f"[{DraculaColors.RED.value}]Error:[/] {e}"))
+            container.mount(Static(f"[{Colors.ERROR.value}]Error:[/] {e}"))
 
     # ─────────────────────────────────────────────────────────────────────────
     # Graph Visualization
@@ -613,7 +615,7 @@ class GundogApp(App):
             return
 
         if not self._results and not self._related_results:
-            graph_content.update(f"[{DraculaColors.COMMENT.value}]No graph data[/]")
+            graph_content.update(f"[{Colors.MUTED.value}]No graph data[/]")
             return
 
         selected_path, is_selected_direct = self._get_selected_path_info()
@@ -801,7 +803,7 @@ class GundogApp(App):
         container = self.query_one("#preview-content", VerticalScroll)
         container.remove_children()
 
-        header.update(f"[{DraculaColors.GREEN.value}]KEYBINDINGS[/]")
+        header.update(f"[{Colors.SUCCESS.value}]KEYBINDINGS[/]")
         container.mount(Static(HELP_TEXT))
 
     def action_force_reconnect(self) -> None:
@@ -831,29 +833,21 @@ class GundogApp(App):
         container = self.query_one("#preview-content", VerticalScroll)
         container.remove_children()
 
-        header.update(f"[{DraculaColors.GREEN.value}]SELECT INDEX[/]")
+        header.update(f"[{Colors.SUCCESS.value}]SELECT INDEX[/]")
 
         lines = []
         for i, idx in enumerate(self._indexes):
             selected = "→ " if i == self._index_selection else "  "
-            active = f"[{DraculaColors.GREEN.value}]●[/] " if idx.is_active else "  "
+            active = f"[{Colors.SUCCESS.value}]●[/] " if idx.is_active else "  "
             if i == self._index_selection:
-                lines.append(
-                    f"[{DraculaColors.PURPLE.value}]{selected}{active}[bold]{idx.name}[/][/]"
-                )
-                lines.append(
-                    f"[{DraculaColors.PURPLE.value}]    {idx.file_count} files  {idx.path}[/]"
-                )
+                lines.append(f"[{Colors.PRIMARY.value}]{selected}{active}[bold]{idx.name}[/][/]")
+                lines.append(f"[{Colors.PRIMARY.value}]    {idx.file_count} files  {idx.path}[/]")
             else:
-                lines.append(
-                    f"{selected}{active}[bold {DraculaColors.FOREGROUND.value}]{idx.name}[/]"
-                )
-                lines.append(
-                    f"[{DraculaColors.COMMENT.value}]    {idx.file_count} files  {idx.path}[/]"
-                )
+                lines.append(f"{selected}{active}[bold {Colors.FOREGROUND.value}]{idx.name}[/]")
+                lines.append(f"[{Colors.MUTED.value}]    {idx.file_count} files  {idx.path}[/]")
             lines.append("")
 
-        lines.append(f"[{DraculaColors.COMMENT.value}]j/k navigate  Enter select  i/Esc cancel[/]")
+        lines.append(f"[{Colors.MUTED.value}]j/k navigate  Enter select  i/Esc cancel[/]")
         container.mount(Static("\n".join(lines)))
 
     async def _switch_to_index(self, name: str) -> None:
