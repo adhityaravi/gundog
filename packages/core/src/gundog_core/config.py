@@ -75,9 +75,7 @@ class DaemonAddress:
         parsed = urlparse(url)
 
         if parsed.scheme not in ("http", "https"):
-            raise ValueError(
-                f"Invalid URL scheme '{parsed.scheme}'. Use 'http://' or 'https://'"
-            )
+            raise ValueError(f"Invalid URL scheme '{parsed.scheme}'. Use 'http://' or 'https://'")
 
         use_tls = parsed.scheme == "https"
         host = parsed.hostname or "127.0.0.1"

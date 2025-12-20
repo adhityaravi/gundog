@@ -366,29 +366,35 @@ class DaemonClient:
         for hit in direct:
             if hit.path not in seen_ids:
                 seen_ids.add(hit.path)
-                nodes.append(GraphNode(
-                    id=hit.path,
-                    type=hit.type,
-                    score=hit.score,
-                ))
+                nodes.append(
+                    GraphNode(
+                        id=hit.path,
+                        type=hit.type,
+                        score=hit.score,
+                    )
+                )
 
         # Add related results as nodes and create edges
         for rel in related:
             if rel.path not in seen_ids:
                 seen_ids.add(rel.path)
-                nodes.append(GraphNode(
-                    id=rel.path,
-                    type=rel.type,
-                    score=None,
-                ))
+                nodes.append(
+                    GraphNode(
+                        id=rel.path,
+                        type=rel.type,
+                        score=None,
+                    )
+                )
 
             # Create edge from via -> path (only if via exists in nodes)
             if rel.via in seen_ids:
-                edges.append(GraphEdge(
-                    source=rel.via,
-                    target=rel.path,
-                    weight=rel.edge_weight,
-                ))
+                edges.append(
+                    GraphEdge(
+                        source=rel.via,
+                        target=rel.path,
+                        weight=rel.edge_weight,
+                    )
+                )
 
         graph = GraphData(nodes=nodes, edges=edges) if nodes else None
 

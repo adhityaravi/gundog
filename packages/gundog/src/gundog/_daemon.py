@@ -63,7 +63,7 @@ class IndexManager:
                     data = json.load(f)
                     id_to_idx = data.get("id_to_idx", {})
                     # Count unique files (strip #chunk_X suffix)
-                    unique_files = {k.split("#")[0] for k in id_to_idx.keys()}
+                    unique_files = {k.split("#")[0] for k in id_to_idx}
                     return len(unique_files)
             except Exception:
                 pass
@@ -75,7 +75,7 @@ class IndexManager:
                 with open(index_json) as f:
                     data = json.load(f)
                     id_to_idx = data.get("id_to_idx", {})
-                    unique_files = {k.split("#")[0] for k in id_to_idx.keys()}
+                    unique_files = {k.split("#")[0] for k in id_to_idx}
                     return len(unique_files)
             except Exception:
                 pass

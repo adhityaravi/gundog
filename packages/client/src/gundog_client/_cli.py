@@ -145,6 +145,7 @@ def tui(
     except Exception as e:
         console.print(f"[red]TUI error:[/red] {e}")
         import traceback
+
         traceback.print_exc()
         raise typer.Exit(1) from None
 
@@ -234,6 +235,7 @@ def main() -> None:
     try:
         # If server package is available, use its CLI (includes all commands)
         from gundog._cli import main as server_main
+
         server_main()
     except ImportError:
         # Server not installed, use client-only CLI

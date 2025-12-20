@@ -22,9 +22,7 @@ def create_mock_search_hit(path: str, score: float, hit_type: str) -> SearchHit:
     )
 
 
-def create_mock_related_hit(
-    path: str, via: str, edge_weight: float, hit_type: str
-) -> RelatedHit:
+def create_mock_related_hit(path: str, via: str, edge_weight: float, hit_type: str) -> RelatedHit:
     """Create a mock RelatedHit for testing."""
     return RelatedHit(
         path=path,
@@ -57,7 +55,16 @@ class MockedGundogApp(GundogApp):
 
     # Use absolute path to CSS file from the TUI package
     from pathlib import Path
-    CSS_PATH = Path(__file__).parent.parent.parent.parent / "packages" / "client" / "src" / "gundog_client" / "_tui" / "app.tcss"
+
+    CSS_PATH = (
+        Path(__file__).parent.parent.parent.parent
+        / "packages"
+        / "client"
+        / "src"
+        / "gundog_client"
+        / "_tui"
+        / "app.tcss"
+    )
 
     async def _connect(self) -> None:
         """Mock connection - just set state to offline."""
@@ -177,6 +184,7 @@ def _run_test(tui_context, assertion_func):
 @then(parsers.parse('the app should display the title "{title}"'))
 def check_title(tui_context, title):
     """Verify the app displays the expected title."""
+
     def check(app):
         title_bar = app.query_one("#title-bar")
         rendered = _get_widget_text(title_bar)
@@ -188,6 +196,7 @@ def check_title(tui_context, title):
 @then("the search input should be visible")
 def check_search_visible(tui_context):
     """Verify the search input is visible."""
+
     def check(app):
         search_input = app.query_one("#search-input")
         assert search_input is not None
@@ -199,6 +208,7 @@ def check_search_visible(tui_context):
 @then("the footer should show keyboard hints")
 def check_footer_hints(tui_context):
     """Verify the footer shows keyboard hints."""
+
     def check(app):
         footer = app.query_one("#help-hints")
         rendered = _get_widget_text(footer)
@@ -210,6 +220,7 @@ def check_footer_hints(tui_context):
 @then("the search input should be focused")
 def check_search_focused(tui_context):
     """Verify the search input is focused."""
+
     def check(app):
         search_input = app.query_one("#search-input")
         assert app.focused == search_input, f"Expected search input focused, got {app.focused}"
@@ -220,6 +231,7 @@ def check_search_focused(tui_context):
 @then("the search input should not be focused")
 def check_search_not_focused(tui_context):
     """Verify the search input is not focused."""
+
     def check(app):
         search_input = app.query_one("#search-input")
         assert app.focused != search_input, "Search input should not be focused"
@@ -230,6 +242,7 @@ def check_search_not_focused(tui_context):
 @then(parsers.parse('the preview header should show "{text}"'))
 def check_preview_header(tui_context, text):
     """Verify the preview header shows expected text."""
+
     def check(app):
         header = app.query_one("#preview-header")
         rendered = _get_widget_text(header)
@@ -241,6 +254,7 @@ def check_preview_header(tui_context, text):
 @then("the app should be exiting")
 def check_app_exiting(tui_context):
     """Verify the app is in the process of exiting."""
+
     def check(app):
         # After pressing 'q', the app should have return_code set or _exit flag
         pass  # App exits correctly if we reach this point
@@ -251,6 +265,7 @@ def check_app_exiting(tui_context):
 @then(parsers.parse("the selected index should be {index:d}"))
 def check_selected_index(tui_context, index):
     """Verify the selected result index."""
+
     def check(app):
         assert app.selected_index == index, f"Expected index {index}, got {app.selected_index}"
 
@@ -260,12 +275,13 @@ def check_selected_index(tui_context, index):
 @then("the footer should show connection status")
 def check_connection_status(tui_context):
     """Verify the footer shows connection status."""
+
     def check(app):
         footer = app.query_one("#footer-status")
         rendered = _get_widget_text(footer)
-        assert any(
-            status in rendered.lower() for status in ["online", "offline", "connecting"]
-        ), f"Expected connection status in footer, got '{rendered}'"
+        assert any(status in rendered.lower() for status in ["online", "offline", "connecting"]), (
+            f"Expected connection status in footer, got '{rendered}'"
+        )
 
     _run_test(tui_context, check)
 
@@ -273,6 +289,7 @@ def check_connection_status(tui_context):
 @then("the direct section header should be visible")
 def check_direct_header_visible(tui_context):
     """Verify the direct section header is visible."""
+
     def check(app):
         header = app.query_one("#direct-header")
         assert header is not None
@@ -285,6 +302,7 @@ def check_direct_header_visible(tui_context):
 @then("the related section header should be visible")
 def check_related_header_visible(tui_context):
     """Verify the related section header is visible."""
+
     def check(app):
         header = app.query_one("#related-header")
         assert header is not None
@@ -297,6 +315,7 @@ def check_related_header_visible(tui_context):
 @then("the graph pane should be visible")
 def check_graph_pane_visible(tui_context):
     """Verify the graph pane is visible."""
+
     def check(app):
         graph_pane = app.query_one("#graph-pane")
         assert graph_pane is not None
@@ -307,6 +326,7 @@ def check_graph_pane_visible(tui_context):
 @then(parsers.parse('the search input should contain "{text}"'))
 def check_search_input_content(tui_context, text):
     """Verify the search input contains the expected text."""
+
     def check(app):
         search_input = app.query_one("#search-input")
         assert text in search_input.value, (
