@@ -25,6 +25,8 @@ Gundog builds these connections across repositories/data sources automatically. 
 
 Gundog uses [ONNX Runtime](https://onnxruntime.ai/) and [HNSW](https://github.com/nmslib/hnswlib) indexing by default for fast queries:
 
+<div align="center">
+
 | Metric | Value |
 |--------|-------|
 | Query latency | ~15ms (after model warmup) |
@@ -32,13 +34,17 @@ Gundog uses [ONNX Runtime](https://onnxruntime.ai/) and [HNSW](https://github.co
 | Accuracy | 96-100% |
 | Index time | ~1 min per 100 files (depends on no. of threads) |
 
+</div>
+
 *Based on personal testing with 60-120 files and 50 queries. Not extensively validated at scale. Your mileage may vary. See [`benchmark/BENCHMARK.md`](benchmark/BENCHMARK.md) for details.*
 
 ## Install
 
 ```bash
-pip install gundog            # core (daemon, indexing)
-pip install gundog[client]    # with TUI and query CLI
+pip install gundog[client]    # full install with daemon + TUI + indexing
+
+pip install gundog            # server only (daemon + indexing)
+pip install gundog-client     # client only (TUI + query)
 ```
 
 ### Or from source
@@ -126,7 +132,7 @@ The `gundog query` command requires the daemon to be running. Daemon settings ar
 
 ### `gundog tui`
 
-Launch an interactive terminal UI for exploring search results with vim-style navigation and a visual graph.
+Launches an interactive TUI for exploring search results with vim-style navigation and a visual relation graph.
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/70d75c49-eb0f-48d9-9a04-4498671650bd" alt="gundog TUI" width="540">
@@ -138,11 +144,9 @@ gundog tui --daemon http://192.168.1.10:7676      # connect to specific daemon
 gundog tui --daemon https://gundog.example.com   # connect over HTTPS
 ```
 
-The TUI provides:
+The TUI connects to the daemon over websocket and provides:
 - Real-time search with debounced input
-- Vim-style navigation (j/k, g/G)
-- Syntax-highlighted file preview
-- Visual graph showing file relationships
+- Syntax-highlighted file preview (local only for now)
 - Index switching on the fly
 - Daemon URL configuration
 
