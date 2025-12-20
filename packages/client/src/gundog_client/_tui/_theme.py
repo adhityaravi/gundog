@@ -1,35 +1,35 @@
-"""Centralized theme configuration for the TUI.
+"""Theme configuration for the TUI.
 
-This module provides a single source of truth for all styling-related
-constants including colors, score thresholds, and file type mappings.
-
-Uses the Dracula color palette: https://draculatheme.com/
+# TODO: make theme switchable at runtime. See issue #33.
+To switch themes, change the imports below.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from pathlib import Path
 from typing import ClassVar
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Active Theme - change these imports to switch themes
+# ─────────────────────────────────────────────────────────────────────────────
+from gundog_client._tui._themes._dracula import THEME, Colors
 
-class DraculaColors(str, Enum):
-    """Dracula theme color palette."""
+# Re-export for convenience
+__all__ = [
+    "THEME",
+    "Colors",
+    "ConnectionColors",
+    "FileTypeColors",
+    "GraphColors",
+    "ScoreColors",
+    "get_language_for_file",
+]
 
-    # Core colors
-    BACKGROUND = "#000000"
-    FOREGROUND = "#f8f8f2"
-    SELECTION = "#44475a"
-    COMMENT = "#6272a4"
 
-    # Accent colors
-    CYAN = "#8be9fd"
-    GREEN = "#50fa7b"
-    ORANGE = "#ffb86c"
-    PINK = "#ff79c6"
-    PURPLE = "#bd93f9"
-    RED = "#ff5555"
-    YELLOW = "#f1fa8c"
+# ─────────────────────────────────────────────────────────────────────────────
+# Theme-aware utilities
+# ─────────────────────────────────────────────────────────────────────────────
 
 
 @dataclass(frozen=True)
@@ -41,22 +41,15 @@ class ScoreThreshold:
 
 
 class ScoreColors:
-    """Score-based color thresholds."""
+    """Score-based color thresholds using active theme colors."""
 
-    HIGH = ScoreThreshold(min_value=0.70, color=DraculaColors.GREEN.value)
-    MEDIUM = ScoreThreshold(min_value=0.40, color=DraculaColors.YELLOW.value)
-    LOW = ScoreThreshold(min_value=0.0, color=DraculaColors.RED.value)
+    HIGH = ScoreThreshold(min_value=0.70, color=Colors.SUCCESS.value)
+    MEDIUM = ScoreThreshold(min_value=0.40, color=Colors.INFO.value)
+    LOW = ScoreThreshold(min_value=0.0, color=Colors.ERROR.value)
 
     @classmethod
     def get_color(cls, score: float) -> str:
-        """Get color for a score value (0.0-1.0).
-
-        Args:
-            score: Score value between 0 and 1.
-
-        Returns:
-            Hex color string for the score.
-        """
+        """Get color for a score value (0.0-1.0)."""
         if score >= cls.HIGH.min_value:
             return cls.HIGH.color
         elif score >= cls.MEDIUM.min_value:
@@ -65,30 +58,44 @@ class ScoreColors:
 
 
 class FileTypeColors:
-    """Color mapping for file types."""
+    """Color mapping for file types using active theme colors."""
 
     COLORS: ClassVar[dict[str, str]] = {
-        "code": DraculaColors.CYAN.value,
-        "docs": DraculaColors.PINK.value,
-        "config": DraculaColors.ORANGE.value,
-        "test": DraculaColors.GREEN.value,
+        "code": Colors.ACCENT.value,
+        "docs": Colors.SECONDARY.value,
+        "config": Colors.WARNING.value,
+        "test": Colors.SUCCESS.value,
     }
-    DEFAULT = DraculaColors.FOREGROUND.value
+    DEFAULT = Colors.FOREGROUND.value
 
     @classmethod
     def get_color(cls, file_type: str) -> str:
-        """Get color for a file type.
-
-        Args:
-            file_type: Type of file (code, docs, config, test).
-
-        Returns:
-            Hex color string for the file type.
-        """
+        """Get color for a file type."""
         return cls.COLORS.get(file_type, cls.DEFAULT)
 
 
-# Language detection mapping (extension -> language name)
+class GraphColors:
+    """Colors for graph visualization using active theme colors."""
+
+    QUERY_ROOT = Colors.WARNING.value
+    SELECTED_DIRECT = Colors.SECONDARY.value
+    SELECTED_RELATED = Colors.ACCENT.value
+    UNSELECTED = Colors.SURFACE.value
+    GUIDE = Colors.SURFACE.value
+
+
+class ConnectionColors:
+    """Colors for connection status using active theme colors."""
+
+    ONLINE = Colors.SUCCESS.value
+    CONNECTING = Colors.INFO.value
+    OFFLINE = Colors.ERROR.value
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Language detection (theme-agnostic)
+# ─────────────────────────────────────────────────────────────────────────────
+
 LANGUAGE_MAP: dict[str, str] = {
     ".py": "python",
     ".js": "javascript",
@@ -117,35 +124,6 @@ LANGUAGE_MAP: dict[str, str] = {
 
 
 def get_language_for_file(path: str) -> str:
-    """Get the language identifier for syntax highlighting.
-
-    Args:
-        path: File path or name.
-
-    Returns:
-        Language identifier for the Rich Syntax highlighter.
-    """
-    from pathlib import Path
-
+    """Get the language identifier for syntax highlighting."""
     ext = Path(path).suffix.lower()
     return LANGUAGE_MAP.get(ext, "text")
-
-
-# Graph node colors
-class GraphColors:
-    """Colors for graph visualization nodes."""
-
-    QUERY_ROOT = DraculaColors.ORANGE.value
-    SELECTED_DIRECT = DraculaColors.PINK.value
-    SELECTED_RELATED = DraculaColors.CYAN.value
-    UNSELECTED = DraculaColors.SELECTION.value
-    GUIDE = DraculaColors.SELECTION.value
-
-
-# Connection state colors
-class ConnectionColors:
-    """Colors for connection status indicators."""
-
-    ONLINE = DraculaColors.GREEN.value
-    CONNECTING = DraculaColors.YELLOW.value
-    OFFLINE = DraculaColors.RED.value

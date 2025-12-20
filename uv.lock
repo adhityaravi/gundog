@@ -365,7 +365,7 @@ wheels = [
 
 [[package]]
 name = "gundog"
-version = "0.3.1"
+version = "0.4.0"
 source = { editable = "packages/gundog" }
 dependencies = [
     { name = "fastapi" },
@@ -438,7 +438,7 @@ provides-extras = ["client", "dev"]
 
 [[package]]
 name = "gundog-client"
-version = "0.3.1"
+version = "0.4.0"
 source = { editable = "packages/client" }
 dependencies = [
     { name = "gundog-core" },
@@ -459,7 +459,7 @@ requires-dist = [
 
 [[package]]
 name = "gundog-core"
-version = "0.3.1"
+version = "0.4.0"
 source = { editable = "packages/core" }
 dependencies = [
     { name = "httpx" },

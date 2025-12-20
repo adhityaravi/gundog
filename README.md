@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/37501b92-1da2-4a6a-b596-7e31cb0ce214" alt="gundog demo" width="540">
+  <img src="assets/demo_webui.gif" alt="gundog demo" width="540">
 </p>
 
 Gundog is a local semantic retrieval engine for your high volume corpus. It finds relevant code and documentation by matching the semantics of your query and not just matching keywords.
@@ -135,7 +135,7 @@ The `gundog query` command requires the daemon to be running. Daemon settings ar
 Launches an interactive TUI for exploring search results with vim-style navigation and a visual relation graph.
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/70d75c49-eb0f-48d9-9a04-4498671650bd" alt="gundog TUI" width="540">
+  <img src="assets/demo_tui.gif" alt="gundog TUI" width="540">
 </p>
 
 ```bash

@@ -10,7 +10,7 @@ from textual.containers import Container
 from textual.screen import ModalScreen
 from textual.widgets import Input, Static
 
-from gundog_client._tui._theme import DraculaColors
+from gundog_client._tui._theme import Colors
 
 
 class InputModal(ModalScreen[str | None]):
@@ -24,38 +24,38 @@ class InputModal(ModalScreen[str | None]):
     InputModal .input-container {{
         width: 60;
         height: auto;
-        background: {DraculaColors.BACKGROUND.value};
-        border: solid {DraculaColors.SELECTION.value};
+        background: {Colors.BACKGROUND.value};
+        border: solid {Colors.SURFACE.value};
         padding: 1 2;
     }}
 
     InputModal .input-title {{
         text-align: center;
         text-style: bold;
-        color: {DraculaColors.GREEN.value};
+        color: {Colors.SUCCESS.value};
         padding-bottom: 1;
-        border-bottom: solid {DraculaColors.SELECTION.value};
+        border-bottom: solid {Colors.SURFACE.value};
     }}
 
     InputModal .input-description {{
-        color: {DraculaColors.COMMENT.value};
+        color: {Colors.MUTED.value};
         padding: 1 0;
     }}
 
     InputModal .input-field {{
         width: 100%;
-        background: {DraculaColors.BACKGROUND.value};
-        border: solid {DraculaColors.SELECTION.value};
+        background: {Colors.BACKGROUND.value};
+        border: solid {Colors.SURFACE.value};
         margin-bottom: 1;
     }}
 
     InputModal .input-field:focus {{
-        border: solid {DraculaColors.PURPLE.value};
+        border: solid {Colors.PRIMARY.value};
     }}
 
     InputModal .input-footer {{
         text-align: center;
-        color: {DraculaColors.COMMENT.value};
+        color: {Colors.MUTED.value};
     }}
     """
 
@@ -89,8 +89,7 @@ class InputModal(ModalScreen[str | None]):
                 id="input-field",
             )
             yield Static(
-                f"[{DraculaColors.CYAN.value}]Enter[/] confirm  "
-                f"[{DraculaColors.CYAN.value}]Esc[/] cancel",
+                f"[{Colors.ACCENT.value}]Enter[/] confirm  [{Colors.ACCENT.value}]Esc[/] cancel",
                 classes="input-footer",
             )
 

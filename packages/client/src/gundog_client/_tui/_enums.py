@@ -23,10 +23,3 @@ class ConnectionState(Enum):
     ONLINE = "online"
     OFFLINE = "offline"
     CONNECTING = "connecting"
-
-
-class ResultSection(Enum):
-    """Which results section is currently focused."""
-
-    DIRECT = auto()
-    RELATED = auto()

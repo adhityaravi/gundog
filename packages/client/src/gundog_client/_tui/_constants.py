@@ -38,10 +38,3 @@ class GraphConfig:
     """Graph visualization configuration."""
 
     MAX_DEPTH: int = 3
-
-
-class UIConfig:
-    """General UI configuration."""
-
-    LOCAL_PATH_DISPLAY_MAX_LENGTH: int = 30
-    LOCAL_PATH_TRUNCATION_PREFIX: str = "..."

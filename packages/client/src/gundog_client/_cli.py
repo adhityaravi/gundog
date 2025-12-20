@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import traceback
 from typing import Annotated
 
 import typer
@@ -15,16 +16,68 @@ from rich.console import Console
 from rich.table import Table
 
 from gundog_client._tui import GundogApp
+from gundog_client._version import __version__ as client_version
 from gundog_core import ClientConfig, DaemonAddress, DaemonClient
 from gundog_core.errors import ConnectionError, QueryError
+
+console = Console()
+
+
+def _get_package_info() -> tuple[str | None, str | None]:
+    """Get version info for installed packages."""
+    daemon_version = None
+    try:
+        from gundog._version import __version__ as dv
+
+        daemon_version = dv
+    except ImportError:
+        pass
+    return client_version, daemon_version
+
+
+def _version_callback(value: bool) -> None:
+    """Show version info and exit."""
+    if value:
+        cv, dv = _get_package_info()
+
+        console.print("[bold]gundog[/bold] - A fast semantic search and retrieval engine")
+        console.print()
+
+        if cv and dv:
+            console.print(f"  [green]●[/green] client  {cv}")
+            console.print(f"  [green]●[/green] daemon  {dv}")
+        elif cv:
+            console.print(f"  [green]●[/green] client  {cv}")
+            console.print("  [dim]○[/dim] daemon  [dim]not installed[/dim]")
+        elif dv:
+            console.print("  [dim]○[/dim] client  [dim]not installed[/dim]")
+            console.print(f"  [green]●[/green] daemon  {dv}")
+
+        raise typer.Exit()
+
 
 # Base app - can be extended by full gundog package
 app = typer.Typer(
     name="gundog",
-    help="Semantic retrieval for architectural knowledge",
+    help="A fast semantic search and retrieval engine",
     no_args_is_help=True,
 )
-console = Console()
+
+
+@app.callback()
+def _app_callback(
+    version: Annotated[
+        bool,
+        typer.Option(
+            "--version",
+            "-v",
+            callback=_version_callback,
+            is_eager=True,
+            help="Show version and installed packages",
+        ),
+    ] = False,
+) -> None:
+    """A fast semantic search and retrieval engine."""
 
 
 @app.command()
@@ -144,8 +197,6 @@ def tui(
         tui_app.run()
     except Exception as e:
         console.print(f"[red]TUI error:[/red] {e}")
-        import traceback
-
         traceback.print_exc()
         raise typer.Exit(1) from None
 
