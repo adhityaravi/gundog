@@ -366,6 +366,7 @@ class GundogApp(App):
             return
 
         self._last_query = query
+        self.set_focus(None)  # Jump to results pane
         await self._execute_query(query)
 
     async def _execute_query(self, query: str) -> None:

@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/ce61352d-a0e5-408f-8ed5-5491d1d193da" alt="gundog demo" width="540">
+  <img src="https://github.com/user-attachments/assets/37501b92-1da2-4a6a-b596-7e31cb0ce214" alt="gundog demo" width="540">
 </p>
 
 Gundog is a local semantic retrieval engine for your high volume corpus. It finds relevant code and documentation by matching the semantics of your query and not just matching keywords.
@@ -37,7 +37,8 @@ Gundog uses [ONNX Runtime](https://onnxruntime.ai/) and [HNSW](https://github.co
 ## Install
 
 ```bash
-pip install gundog
+pip install gundog            # core (daemon, indexing)
+pip install gundog[client]    # with TUI and query CLI
 ```
 
 ### Or from source
@@ -128,7 +129,7 @@ The `gundog query` command requires the daemon to be running. Daemon settings ar
 Launch an interactive terminal UI for exploring search results with vim-style navigation and a visual graph.
 
 <p align="center">
-  <img src="assets/demo_tui.png" alt="gundog TUI" width="540">
+  <img src="https://github.com/user-attachments/assets/70d75c49-eb0f-48d9-9a04-4498671650bd" alt="gundog TUI" width="540">
 </p>
 
 ```bash
@@ -143,7 +144,7 @@ The TUI provides:
 - Syntax-highlighted file preview
 - Visual graph showing file relationships
 - Index switching on the fly
-- Daemon URL configuration (saved to config)
+- Daemon URL configuration
 
 #### TUI Keybindings
 
@@ -331,7 +332,7 @@ daemon:
   host: 127.0.0.1       # bind address
   port: 7676            # port number
   serve_ui: true        # serve web UI at root path
-  auth:
+  auth:                 # Auth not supported by the clients yet
     enabled: false      # require API key
     api_key: null       # set via GUNDOG_API_KEY env var or here
   cors:
