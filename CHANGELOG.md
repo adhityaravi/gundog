@@ -2,6 +2,34 @@
 
 <!-- version list -->
 
+## v0.4.1 (2025-12-20)
+
+### Bug Fixes
+
+- Fixes broken cdn links ([#34](https://github.com/adhityaravi/gundog/pull/34),
+  [`d5e9220`](https://github.com/adhityaravi/gundog/commit/d5e92203ea3c11e290664836b4ce8583ed681130))
+
+- Minor cosmetic fixes ([#34](https://github.com/adhityaravi/gundog/pull/34),
+  [`d5e9220`](https://github.com/adhityaravi/gundog/commit/d5e92203ea3c11e290664836b4ce8583ed681130))
+
+### Chores
+
+- Adds a version cmd ([#34](https://github.com/adhityaravi/gundog/pull/34),
+  [`d5e9220`](https://github.com/adhityaravi/gundog/commit/d5e92203ea3c11e290664836b4ce8583ed681130))
+
+- Drop dead tui legacy code ([#34](https://github.com/adhityaravi/gundog/pull/34),
+  [`d5e9220`](https://github.com/adhityaravi/gundog/commit/d5e92203ea3c11e290664836b4ce8583ed681130))
+
+- Refactor tui for maintainability ([#34](https://github.com/adhityaravi/gundog/pull/34),
+  [`d5e9220`](https://github.com/adhityaravi/gundog/commit/d5e92203ea3c11e290664836b4ce8583ed681130))
+
+- Refactor tui themes for extensibility ([#34](https://github.com/adhityaravi/gundog/pull/34),
+  [`d5e9220`](https://github.com/adhityaravi/gundog/commit/d5e92203ea3c11e290664836b4ce8583ed681130))
+
+- Remove unwanted conditional imports ([#34](https://github.com/adhityaravi/gundog/pull/34),
+  [`d5e9220`](https://github.com/adhityaravi/gundog/commit/d5e92203ea3c11e290664836b4ce8583ed681130))
+
+
 ## v0.4.0 (2025-12-20)
 
 ### Bug Fixes
