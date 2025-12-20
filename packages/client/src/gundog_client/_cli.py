@@ -13,8 +13,8 @@ from typing import Annotated
 import typer
 from rich.console import Console
 from rich.table import Table
-from rich.tree import Tree
 
+from gundog_client._tui import GundogApp
 from gundog_core import ClientConfig, DaemonAddress, DaemonClient
 from gundog_core.errors import ConnectionError, QueryError
 
@@ -32,24 +32,29 @@ def query(
     query_text: Annotated[str, typer.Argument(help="Search query")],
     top_k: Annotated[int, typer.Option("--top", "-k", help="Number of results")] = 10,
     index: Annotated[str | None, typer.Option("--index", "-i", help="Index name")] = None,
-    host: Annotated[str | None, typer.Option("--host", "-H", help="Daemon host")] = None,
-    port: Annotated[int | None, typer.Option("--port", "-p", help="Daemon port")] = None,
-    format_: Annotated[
-        str, typer.Option("--format", "-f", help="Output format: pretty, json, paths")
-    ] = "pretty",
+    daemon: Annotated[
+        str | None,
+        typer.Option("--daemon", "-d", help="Daemon URL (e.g., http://127.0.0.1:7676)"),
+    ] = None,
+    paths_only: Annotated[
+        bool, typer.Option("--paths", help="Output only file paths, one per line")
+    ] = False,
     no_expand: Annotated[
         bool, typer.Option("--no-expand", help="Disable graph expansion")
     ] = False,
 ) -> None:
-    """Execute a semantic search query against the daemon."""
+    """Execute a semantic search query against the daemon. Outputs JSON by default."""
     config = ClientConfig.load()
 
     # Override with CLI args if provided
-    address = DaemonAddress(
-        host=host or config.daemon.host,
-        port=port or config.daemon.port,
-        use_tls=config.daemon.use_tls,
-    )
+    if daemon:
+        try:
+            address = DaemonAddress.from_url(daemon)
+        except ValueError as e:
+            console.print(f"[red]Invalid daemon URL:[/red] {e}")
+            raise typer.Exit(1) from None
+    else:
+        address = config.daemon
 
     asyncio.run(
         _query(
@@ -57,7 +62,7 @@ def query(
             top_k=top_k,
             index=index or config.default_index,
             address=address,
-            format_=format_,
+            paths_only=paths_only,
             expand=not no_expand,
         )
     )
@@ -69,7 +74,7 @@ async def _query(
     top_k: int,
     index: str | None,
     address: DaemonAddress,
-    format_: str,
+    paths_only: bool,
     expand: bool,
 ) -> None:
     """Execute query and display results."""
@@ -77,7 +82,11 @@ async def _query(
         async with DaemonClient(address) as client:
             result = await client.query(q, top_k=top_k, index=index, expand=expand)
 
-            if format_ == "json":
+            if paths_only:
+                for hit in result.direct:
+                    print(hit.path)
+            else:
+                # Raw JSON output
                 output = {
                     "direct": [
                         {
@@ -94,19 +103,13 @@ async def _query(
                             "via": r.via,
                             "edge_weight": r.edge_weight,
                             "depth": r.depth,
+                            "type": r.type,
                         }
                         for r in result.related
                     ],
                     "timing_ms": result.timing_ms,
                 }
-                console.print_json(json.dumps(output))
-
-            elif format_ == "paths":
-                for hit in result.direct:
-                    console.print(hit.path)
-
-            else:  # pretty
-                _print_pretty_results(q, result)
+                print(json.dumps(output, indent=2))
 
     except ConnectionError as e:
         console.print(f"[red]Connection error:[/red] {e}")
@@ -117,77 +120,53 @@ async def _query(
         raise typer.Exit(1) from None
 
 
-def _print_pretty_results(q: str, result) -> None:
-    """Print results in pretty format."""
-    # Direct results table
-    if result.direct:
-        table = Table(title=f"Results for: [cyan]{q}[/cyan]")
-        table.add_column("Score", style="cyan", width=8, justify="right")
-        table.add_column("Path", style="green")
-        table.add_column("Type", style="yellow", width=8)
-        table.add_column("Lines", width=12)
-
-        for hit in result.direct:
-            score = f"{hit.score:.1%}"
-            lines = f"L{hit.lines[0]}-{hit.lines[1]}" if hit.lines else "-"
-            table.add_row(score, hit.path, hit.type, lines)
-
-        console.print(table)
-    else:
-        console.print("[yellow]No direct matches found.[/yellow]")
-
-    # Related results tree
-    if result.related:
-        console.print()
-        tree = Tree("[bold]Related via graph[/bold]")
-        for related in result.related:
-            branch = tree.add(f"[green]{related.path}[/green]")
-            branch.add(f"[dim]via {related.via} ({related.edge_weight:.1%})[/dim]")
-
-        console.print(tree)
-
-    # Timing
-    console.print(f"\n[dim]Query took {result.timing_ms:.1f}ms[/dim]")
-
-
 @app.command()
 def tui(
-    host: Annotated[str | None, typer.Option("--host", "-H", help="Daemon host")] = None,
-    port: Annotated[int | None, typer.Option("--port", "-p", help="Daemon port")] = None,
+    daemon: Annotated[
+        str | None,
+        typer.Option("--daemon", "-d", help="Daemon URL (e.g., http://127.0.0.1:7676)"),
+    ] = None,
 ) -> None:
     """Launch interactive TUI for exploring search results."""
     config = ClientConfig.load()
 
-    address = DaemonAddress(
-        host=host or config.daemon.host,
-        port=port or config.daemon.port,
-        use_tls=config.daemon.use_tls,
-    )
+    if daemon:
+        try:
+            address = DaemonAddress.from_url(daemon)
+        except ValueError as e:
+            console.print(f"[red]Invalid daemon URL:[/red] {e}")
+            raise typer.Exit(1) from None
+    else:
+        address = config.daemon
 
+    tui_app = GundogApp(address=address, config=config)
     try:
-        from gundog_client.tui.app import GundogApp
-
-        tui_app = GundogApp(address=address, config=config)
         tui_app.run()
-    except ImportError as e:
-        console.print(f"[red]TUI dependencies not available:[/red] {e}")
-        console.print("\n[dim]Try: pip install gundog-client[/dim]")
+    except Exception as e:
+        console.print(f"[red]TUI error:[/red] {e}")
+        import traceback
+        traceback.print_exc()
         raise typer.Exit(1) from None
 
 
 @app.command()
 def indexes(
-    host: Annotated[str | None, typer.Option("--host", "-H", help="Daemon host")] = None,
-    port: Annotated[int | None, typer.Option("--port", "-p", help="Daemon port")] = None,
+    daemon: Annotated[
+        str | None,
+        typer.Option("--daemon", "-d", help="Daemon URL (e.g., http://127.0.0.1:7676)"),
+    ] = None,
 ) -> None:
     """List available indexes on the daemon."""
     config = ClientConfig.load()
 
-    address = DaemonAddress(
-        host=host or config.daemon.host,
-        port=port or config.daemon.port,
-        use_tls=config.daemon.use_tls,
-    )
+    if daemon:
+        try:
+            address = DaemonAddress.from_url(daemon)
+        except ValueError as e:
+            console.print(f"[red]Invalid daemon URL:[/red] {e}")
+            raise typer.Exit(1) from None
+    else:
+        address = config.daemon
 
     asyncio.run(_list_indexes(address))
 
@@ -247,8 +226,18 @@ def config(
 
 
 def main() -> None:
-    """Entry point for gundog-client."""
-    app()
+    """Entry point for gundog CLI.
+
+    If the full gundog package is installed, delegates to its CLI
+    (which includes daemon, index commands). Otherwise uses client-only CLI.
+    """
+    try:
+        # If server package is available, use its CLI (includes all commands)
+        from gundog._cli import main as server_main
+        server_main()
+    except ImportError:
+        # Server not installed, use client-only CLI
+        app()
 
 
 if __name__ == "__main__":

@@ -71,11 +71,14 @@ gundog daemon add myproject .
 ```bash
 gundog query "database connection pooling"
 
+# or launch the interactive TUI
+gundog tui
+
 # stop the daemon if you will
 gundog daemon stop
 ```
 
-Returns ranked results with file paths and relevance scores. The daemon keeps the model loaded for instant queries (~15ms).
+Returns ranked results with file paths and relevance scores. The daemon keeps the model loaded for instant queries (~15ms). The TUI provides an interactive interface with real-time search, vim-style navigation, and a visual graph.
 
 ## Commands
 
@@ -113,11 +116,71 @@ Finds relevant files for a natural language query. **Requires the daemon to be r
 
 ```bash
 gundog query "error handling strategy"
-gundog query "authentication" --top 5        # limit results
-gundog query "auth" --index myproject        # use specific registered index
+gundog query "authentication" --top 5                        # limit results
+gundog query "auth" --index myproject                        # use specific index
+gundog query "auth" --daemon http://192.168.1.10:7676        # use specific daemon
 ```
 
 The `gundog query` command requires the daemon to be running. Daemon settings are stored at `~/.config/gundog/daemon.yaml`.
+
+### `gundog tui`
+
+Launch an interactive terminal UI for exploring search results with vim-style navigation and a visual graph.
+
+<p align="center">
+  <img src="assets/demo_tui.png" alt="gundog TUI" width="540">
+</p>
+
+```bash
+gundog tui                                        # connect to daemon from config
+gundog tui --daemon http://192.168.1.10:7676      # connect to specific daemon
+gundog tui --daemon https://gundog.example.com   # connect over HTTPS
+```
+
+The TUI provides:
+- Real-time search with debounced input
+- Vim-style navigation (j/k, g/G)
+- Syntax-highlighted file preview
+- Visual graph showing file relationships
+- Index switching on the fly
+- Daemon URL configuration (saved to config)
+
+#### TUI Keybindings
+
+| Key | Action |
+|-----|--------|
+| `/` | Focus search input |
+| `j` / `↓` | Next result |
+| `k` / `↑` | Previous result |
+| `g` / `G` | First / Last result |
+| `Enter` | Open file in `$EDITOR` |
+| `i` | Switch index |
+| `L` | Set local path for file preview |
+| `D` | Set daemon URL |
+| `R` | Force reconnect to daemon |
+| `?` | Toggle help |
+| `Esc` | Back to results / Cancel |
+| `q` | Quit |
+
+### `gundog indexes`
+
+List available indexes registered with the daemon.
+
+```bash
+gundog indexes                                    # list all indexes
+gundog indexes --daemon http://192.168.1.10:7676  # list indexes on specific daemon
+```
+
+### `gundog config`
+
+Manage client configuration for the TUI and CLI.
+
+```bash
+gundog config --show    # display current config
+gundog config --init    # create default config file
+```
+
+Client config is stored at `~/.config/gundog/client.yaml` and includes settings like local paths for file preview in the TUI.
 
 ## How It Works
 
@@ -135,12 +198,13 @@ The `gundog query` command requires the daemon to be running. Daemon settings ar
 
 ## Configuration
 
-Gundog uses two config files:
+Gundog uses three config files:
 
 | File | Scope | Purpose |
 |------|-------|---------|
 | `.gundog/config.yaml` | Per-project | Index settings (sources, model, storage) |
 | `~/.config/gundog/daemon.yaml` | Per-user | Daemon settings (host, port, registered indexes) |
+| `~/.config/gundog/client.yaml` | Per-user | Client settings (local paths for TUI file preview) |
 
 
 ### Project config
@@ -279,6 +343,22 @@ indexes:
 
 default_index: myproject  # used when --index not specified
 ```
+
+### Client config
+
+The client config at `~/.config/gundog/client.yaml` stores TUI and client preferences:
+
+```yaml
+# Daemon URL (set via TUI with 'D' key or --daemon flag)
+daemon_url: http://127.0.0.1:7676
+
+# Local paths for file preview (set via TUI with 'L' key)
+local_paths:
+  myproject: /home/user/projects/myproject
+  docs: /home/user/docs
+```
+
+When you set a daemon URL in the TUI (press `D`), it's saved to this config file. Local paths map index names to your local checkout for syntax-highlighted file preview.
 
 ## Network & SSL
 

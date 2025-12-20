@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urlparse
 
 import yaml
 
@@ -57,6 +58,32 @@ class DaemonAddress:
         """Get WebSocket URL for the daemon."""
         scheme = "wss" if self.use_tls else "ws"
         return f"{scheme}://{self.host}:{self.port}/ws"
+
+    @classmethod
+    def from_url(cls, url: str) -> DaemonAddress:
+        """Parse a URL into a DaemonAddress.
+
+        Args:
+            url: URL like 'http://127.0.0.1:7676' or 'https://gundog.example.com'
+
+        Returns:
+            DaemonAddress with parsed host, port, and TLS setting.
+
+        Raises:
+            ValueError: If URL is invalid or has unsupported scheme.
+        """
+        parsed = urlparse(url)
+
+        if parsed.scheme not in ("http", "https"):
+            raise ValueError(
+                f"Invalid URL scheme '{parsed.scheme}'. Use 'http://' or 'https://'"
+            )
+
+        use_tls = parsed.scheme == "https"
+        host = parsed.hostname or "127.0.0.1"
+        port = parsed.port or (443 if use_tls else 7676)
+
+        return cls(host=host, port=port, use_tls=use_tls)
 
 
 @dataclass
@@ -281,11 +308,8 @@ class DaemonConfig:
 CLIENT_CONFIG_TEMPLATE = """\
 # Gundog client configuration
 
-# Daemon connection (should match daemon.yaml settings)
-daemon:
-  host: 127.0.0.1
-  port: 7676
-  use_tls: false
+# Daemon URL (e.g., http://127.0.0.1:7676 or https://gundog.example.com)
+daemon_url: http://127.0.0.1:7676
 
 # Default index to use (optional, uses daemon's default if not set)
 default_index: null
@@ -397,15 +421,21 @@ class ClientConfig:
     @classmethod
     def _from_dict(cls, data: dict) -> ClientConfig:
         """Parse config from dict."""
-        daemon_data = data.get("daemon", {})
         tui_data = data.get("tui", {})
         conn_data = data.get("connection", {})
 
-        daemon = DaemonAddress(
-            host=daemon_data.get("host", "127.0.0.1"),
-            port=daemon_data.get("port", 7676),
-            use_tls=daemon_data.get("use_tls", False),
-        )
+        # Support both new daemon_url format and legacy daemon dict
+        daemon_url = data.get("daemon_url")
+        if daemon_url:
+            daemon = DaemonAddress.from_url(daemon_url)
+        else:
+            # Legacy format support
+            daemon_data = data.get("daemon", {})
+            daemon = DaemonAddress(
+                host=daemon_data.get("host", "127.0.0.1"),
+                port=daemon_data.get("port", 7676),
+                use_tls=daemon_data.get("use_tls", False),
+            )
 
         tui = TuiSettings(
             search_debounce_ms=tui_data.get("search_debounce_ms", 300),
@@ -436,11 +466,7 @@ class ClientConfig:
         config_path.parent.mkdir(parents=True, exist_ok=True)
 
         data = {
-            "daemon": {
-                "host": self.daemon.host,
-                "port": self.daemon.port,
-                "use_tls": self.daemon.use_tls,
-            },
+            "daemon_url": self.daemon.http_url,
             "default_index": self.default_index,
             "tui": {
                 "search_debounce_ms": self.tui.search_debounce_ms,
@@ -466,3 +492,14 @@ class ClientConfig:
     def get_local_path(self, index_name: str) -> str | None:
         """Get local path for an index."""
         return self.local_paths.get(index_name)
+
+    def set_daemon_url(self, url: str) -> None:
+        """Set daemon URL from a URL string.
+
+        Args:
+            url: URL like 'http://127.0.0.1:7676' or 'https://gundog.example.com'
+
+        Raises:
+            ValueError: If URL is invalid.
+        """
+        self.daemon = DaemonAddress.from_url(url)

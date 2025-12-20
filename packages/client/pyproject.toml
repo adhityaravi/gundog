@@ -23,8 +23,8 @@ dependencies = [
     "rich>=13.0",
     # TUI framework
     "textual>=0.50.0",
-    # Graph visualization
-    "networkx>=3.0",
+    # Retry logic
+    "tenacity>=8.0",
 ]
 
 [project.scripts]

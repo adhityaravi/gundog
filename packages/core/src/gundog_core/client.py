@@ -306,6 +306,32 @@ class DaemonClient:
     # Response Parsing
     # -------------------------------------------------------------------------
 
+    def _parse_lines(self, lines: str | list | tuple | None) -> tuple[int, int] | None:
+        """Parse lines field which may be string '1-48' or tuple/list.
+
+        Args:
+            lines: Line range in various formats (string, list, tuple, or None)
+
+        Returns:
+            Tuple of (start_line, end_line) or None
+        """
+        if lines is None:
+            return None
+        if isinstance(lines, str):
+            parts = lines.split("-")
+            if len(parts) == 2:
+                try:
+                    return (int(parts[0]), int(parts[1]))
+                except ValueError:
+                    return None
+            return None
+        if isinstance(lines, (list, tuple)) and len(lines) >= 2:
+            try:
+                return (int(lines[0]), int(lines[1]))
+            except (ValueError, TypeError):
+                return None
+        return None
+
     def _parse_query_response(self, data: dict[str, Any]) -> QueryResponse:
         """Parse raw JSON into QueryResponse."""
         direct = [
@@ -313,7 +339,7 @@ class DaemonClient:
                 path=h["path"],
                 score=h["score"],
                 type=h.get("type", "code"),
-                lines=tuple(h["lines"]) if h.get("lines") else None,
+                lines=self._parse_lines(h.get("lines")),
                 chunk_index=h.get("chunk_index"),
                 content_preview=h.get("preview"),
             )
@@ -324,34 +350,47 @@ class DaemonClient:
             RelatedHit(
                 path=r["path"],
                 via=r["via"],
-                edge_weight=r["edge_weight"],
-                depth=r["depth"],
+                edge_weight=r.get("edge_weight", r.get("weight", 0.0)),
+                depth=r.get("depth", 1),
                 type=r.get("type", "code"),
             )
             for r in data.get("related", [])
         ]
 
-        graph = None
-        if data.get("graph"):
-            g = data["graph"]
-            graph = GraphData(
-                nodes=[
-                    GraphNode(
-                        id=n["id"],
-                        type=n.get("type", "code"),
-                        score=n.get("score"),
-                    )
-                    for n in g.get("nodes", [])
-                ],
-                edges=[
-                    GraphEdge(
-                        source=e["source"],
-                        target=e["target"],
-                        weight=e["weight"],
-                    )
-                    for e in g.get("edges", [])
-                ],
-            )
+        # Build graph from direct and related results (like WebUI does)
+        seen_ids: set[str] = set()
+        nodes: list[GraphNode] = []
+        edges: list[GraphEdge] = []
+
+        # Add direct results as nodes
+        for hit in direct:
+            if hit.path not in seen_ids:
+                seen_ids.add(hit.path)
+                nodes.append(GraphNode(
+                    id=hit.path,
+                    type=hit.type,
+                    score=hit.score,
+                ))
+
+        # Add related results as nodes and create edges
+        for rel in related:
+            if rel.path not in seen_ids:
+                seen_ids.add(rel.path)
+                nodes.append(GraphNode(
+                    id=rel.path,
+                    type=rel.type,
+                    score=None,
+                ))
+
+            # Create edge from via -> path (only if via exists in nodes)
+            if rel.via in seen_ids:
+                edges.append(GraphEdge(
+                    source=rel.via,
+                    target=rel.path,
+                    weight=rel.edge_weight,
+                ))
+
+        graph = GraphData(nodes=nodes, edges=edges) if nodes else None
 
         return QueryResponse(
             direct=direct,

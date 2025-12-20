@@ -49,6 +49,39 @@ class IndexManager:
     def engine(self) -> QueryEngine | None:
         return self._engine
 
+    def get_file_count(self, index_path: str) -> int:
+        """Get file count from an index directory."""
+        path = Path(index_path)
+        gundog_dir = path if path.name == ".gundog" else path / ".gundog"
+        index_dir = gundog_dir / "index"
+
+        # Try HNSW store first (hnsw_config.json)
+        hnsw_config = index_dir / "hnsw_config.json"
+        if hnsw_config.exists():
+            try:
+                with open(hnsw_config) as f:
+                    data = json.load(f)
+                    id_to_idx = data.get("id_to_idx", {})
+                    # Count unique files (strip #chunk_X suffix)
+                    unique_files = {k.split("#")[0] for k in id_to_idx.keys()}
+                    return len(unique_files)
+            except Exception:
+                pass
+
+        # Try numpy store (index.json)
+        index_json = index_dir / "index.json"
+        if index_json.exists():
+            try:
+                with open(index_json) as f:
+                    data = json.load(f)
+                    id_to_idx = data.get("id_to_idx", {})
+                    unique_files = {k.split("#")[0] for k in id_to_idx.keys()}
+                    return len(unique_files)
+            except Exception:
+                pass
+
+        return 0
+
     def reload_config(self, warmup: bool = True) -> DaemonConfig:
         """Reload config from disk and optionally warmup default index."""
         self.config = DaemonConfig.load()
@@ -194,7 +227,7 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
             {
                 "name": name,
                 "path": path,
-                "file_count": 0,  # TODO: get actual count from index
+                "file_count": manager.get_file_count(path),
                 "is_active": name == manager.active_index,
             }
             for name, path in manager.config.indexes.items()
@@ -241,6 +274,10 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
 
         result = engine.query(q, top_k=k)
 
+        # Filter out 0% scores and limit related results (consistent with WebUI)
+        direct_filtered = [d for d in result.direct if d["score"] > 0]
+        related_limited = result.related[:25]  # WebUI uses 25 for graph
+
         return {
             "query": result.query,
             "index": manager.active_index,
@@ -253,7 +290,7 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
                     "lines": d.get("lines"),
                     "url": d.get("url", ""),  # URL already built by query engine
                 }
-                for d in result.direct
+                for d in direct_filtered
             ],
             "related": [
                 {
@@ -265,7 +302,7 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
                     "weight": r["edge_weight"],
                     "url": build_file_url(r),
                 }
-                for r in result.related
+                for r in related_limited
             ],
         }
 
@@ -279,6 +316,10 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
         timing_ms: float,
     ) -> dict[str, Any]:
         """Build query_result response."""
+        # Filter out 0% scores and limit related results (consistent with HTTP API)
+        direct_filtered = [d for d in result.direct if d["score"] > 0]
+        related_limited = result.related[:25]  # WebUI uses 25 for graph
+
         return {
             "type": "query_result",
             "id": request_id,
@@ -291,7 +332,7 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
                     "lines": d.get("lines"),
                     "chunk_index": d.get("chunk_index"),
                 }
-                for d in result.direct
+                for d in direct_filtered
             ],
             "related": [
                 {
@@ -301,12 +342,12 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
                     "depth": r.get("depth", 1),
                     "type": r.get("type", "code"),
                 }
-                for r in result.related
+                for r in related_limited
             ],
             "graph": {
                 "nodes": [
                     {"id": n["path"], "type": n.get("type", "code"), "score": n.get("score")}
-                    for n in result.direct
+                    for n in direct_filtered
                 ],
                 "edges": [],  # TODO: populate from similarity graph when available
             },
@@ -319,13 +360,13 @@ def create_app(config: DaemonConfig | None = None) -> FastAPI:
             "indexes": [
                 {
                     "name": name,
-                    "files": 0,  # TODO: get actual count from index
+                    "files": manager.get_file_count(path),
                     "chunks": 0,
                     "last_updated": None,
                     "config": {},
                     "sample_paths": [],
                 }
-                for name, _ in manager.config.indexes.items()
+                for name, path in manager.config.indexes.items()
             ],
             "current": manager.active_index,
         }
