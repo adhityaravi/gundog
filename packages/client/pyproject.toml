@@ -2,7 +2,6 @@
 name = "gundog-client"
 version = "0.3.1"
 description = "Lightweight TUI and CLI client for gundog semantic search"
-readme = "../../README.md"
 license = "GPL-3.0-or-later"
 requires-python = ">=3.12"
 authors = [{ name = "ivdi" }]

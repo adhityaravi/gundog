@@ -67,10 +67,16 @@ jobs:
           fi
 
       - name: Bump version, commit, and tag
-        if: ${{ steps.version.outputs.new == 'true' && !inputs.dry_run }}
+        if: ${{ steps.version.outputs.new == 'true' && !inputs.dry_run && !inputs.test_pypi }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: uv run semantic-release version --no-push
+
+      - name: Bump version for Test PyPI (no commit)
+        if: ${{ steps.version.outputs.new == 'true' && inputs.test_pypi }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: uv run semantic-release version --no-commit --no-tag --no-push
 
       - name: Build packages
         if: steps.version.outputs.new == 'true'
