@@ -1,5 +1,6 @@
 """Text embedding using ONNX Runtime for faster inference."""
 
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -294,7 +295,6 @@ def convert_to_onnx(
     # Note: We always use export=True for consistent embeddings across all models.
     # HuggingFace's pre-converted ONNX may differ slightly due to version differences.
     print(f"Converting {model_name} to ONNX format...")
-    import logging
 
     # Suppress optimum's "already converted" warning (it's printed, not warned)
     optimum_logger = logging.getLogger("optimum")

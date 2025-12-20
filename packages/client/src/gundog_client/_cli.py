@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import traceback
 from typing import Annotated
 
 import typer
@@ -144,8 +145,6 @@ def tui(
         tui_app.run()
     except Exception as e:
         console.print(f"[red]TUI error:[/red] {e}")
-        import traceback
-
         traceback.print_exc()
         raise typer.Exit(1) from None
 

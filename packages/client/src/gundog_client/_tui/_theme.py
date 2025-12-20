@@ -7,6 +7,7 @@ To switch themes, change the imports below.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import ClassVar
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -124,7 +125,5 @@ LANGUAGE_MAP: dict[str, str] = {
 
 def get_language_for_file(path: str) -> str:
     """Get the language identifier for syntax highlighting."""
-    from pathlib import Path
-
     ext = Path(path).suffix.lower()
     return LANGUAGE_MAP.get(ext, "text")
