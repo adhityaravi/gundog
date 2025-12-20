@@ -1,6 +1,6 @@
 [project]
 name = "gundog-client"
-version = "0.3.1"
+version = "0.4.0"
 description = "Lightweight TUI and CLI client for gundog semantic search"
 license = "GPL-3.0-or-later"
 requires-python = ">=3.12"

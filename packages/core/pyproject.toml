@@ -1,6 +1,6 @@
 [project]
 name = "gundog-core"
-version = "0.3.1"
+version = "0.4.0"
 description = "Shared types, protocols, and client for gundog semantic search"
 license = "GPL-3.0-or-later"
 requires-python = ">=3.12"
