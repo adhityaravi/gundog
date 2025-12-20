@@ -14,7 +14,7 @@ on:
         default: true
         type: boolean
       test_pypi:
-        description: Publish to Test PyPI instead of PyPI
+        description: Publish to Test PyPI
         required: false
         default: false
         type: boolean
